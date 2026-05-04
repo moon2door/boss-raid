@@ -15,8 +15,8 @@ namespace BossRaid
         [SerializeField] private float rouletteAutoAdvanceDelaySeconds = 3f;
         [SerializeField] private float burgerRouletteMinStepSeconds = 0.025f;
         [SerializeField] private float burgerRouletteMaxStepSeconds = 0.22f;
-        [SerializeField] private float burgerRouletteMinDurationSeconds = 4.2f;
-        [SerializeField] private float burgerRouletteMaxDurationSeconds = 7.4f;
+        [SerializeField] private float burgerRouletteMinDurationSeconds = 2.2f;
+        [SerializeField] private float burgerRouletteMaxDurationSeconds = 5.4f;
         [SerializeField] private int burgerPickCount = 8;
 
         private BossRaidStateStore stateStore;

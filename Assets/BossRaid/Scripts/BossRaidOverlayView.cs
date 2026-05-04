@@ -17,6 +17,9 @@ namespace BossRaid
         private static readonly Color Green = new Color(0.22f, 0.85f, 0.48f, 1f);
         private static readonly Color Cyan = new Color(0.25f, 0.78f, 1f, 1f);
         private static readonly Color Gold = new Color(1f, 0.72f, 0.22f, 1f);
+        private const string PrefabResourcePath = "BossRaidUi/";
+
+        [SerializeField] private bool usePrefabUi = true;
 
         private BossRaidStateStore stateStore;
         private BossRaidWebSocketClient socketClient;
@@ -24,9 +27,24 @@ namespace BossRaid
         private RectTransform root;
         private RectTransform header;
         private RectTransform content;
+        private RectTransform prefabLayer;
         private Image backgroundImage;
         private Text connectionText;
         private float pulse;
+
+        private sealed class PrefabContext
+        {
+            public BossRaidTeam team;
+            public BossRaidMap map;
+            public BossRaidDifficultyConfig difficulty;
+            public string mode;
+            public string statLabel;
+            public string statValue;
+            public Color statColor;
+            public int index;
+            public bool selected;
+            public bool roundMap;
+        }
 
         private void Awake()
         {
@@ -100,6 +118,7 @@ namespace BossRaid
 
             header = CreateRect("Header", root, new Vector2(0f, 1f), Vector2.one, new Vector2(28f, -146f), new Vector2(-28f, -24f));
             content = CreateRect("Content", root, Vector2.zero, new Vector2(1f, 1f), new Vector2(28f, 28f), new Vector2(-28f, -164f));
+            prefabLayer = CreateRect("PrefabLayer", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         }
 
         private void Render(BossRaidState nextState)
@@ -109,6 +128,13 @@ namespace BossRaid
 
             Clear(header);
             Clear(content);
+            Clear(prefabLayer);
+
+            if (TryBuildPrefab(GetFullScreenPrefabName(), prefabLayer))
+            {
+                return;
+            }
+
             BuildHeader();
 
             switch (state.screen)
@@ -141,8 +167,36 @@ namespace BossRaid
 
         }
 
+        private string GetFullScreenPrefabName()
+        {
+            switch (state.screen)
+            {
+                case BossRaidScreens.BurgerReveal:
+                    return "BurgerMapSelectScreen";
+                case BossRaidScreens.RouletteMode:
+                    return "ModeSelectScreen";
+                case BossRaidScreens.RouletteMap:
+                    return "MapSelectScreen";
+                case BossRaidScreens.DifficultySelect:
+                    return "DifficultySelectScreen";
+                case BossRaidScreens.MapReady:
+                    return "MapReadyScreen";
+                case BossRaidScreens.InGame:
+                    return "InGameScreen";
+                case BossRaidScreens.Result:
+                    return state.lastResult == BossRaidResults.Clear ? "SuccessResultScreen" : "FailResultScreen";
+                default:
+                    return "StartScreen";
+            }
+        }
+
         private void BuildHeader()
         {
+            if (TryBuildPrefab("Header", header))
+            {
+                return;
+            }
+
             var team = state.CurrentTeam;
             var selectedMap = state.SelectedMap;
 
@@ -165,6 +219,11 @@ namespace BossRaid
 
         private void BuildStandby()
         {
+            if (TryBuildPrefab("StandbyScreen", content))
+            {
+                return;
+            }
+
             var hero = CreatePanel("StandbyHero", content, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.045f, 0.05f, 0.07f, 0.92f));
             CreateAnchoredText(hero, "Title", state.eventTitle, 88, White, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.53f), new Vector2(1f, 0.70f), new Vector2(80f, 0f), new Vector2(-80f, 0f));
             CreateAnchoredText(hero, "Subtitle", "Co-op boss raid overlay ready", 30, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.44f), new Vector2(1f, 0.52f), new Vector2(80f, 0f), new Vector2(-80f, 0f));
@@ -175,6 +234,11 @@ namespace BossRaid
 
         private void BuildBurgerReveal()
         {
+            if (TryBuildPrefab("BurgerRevealScreen", content))
+            {
+                return;
+            }
+
             CreateAnchoredText(content, "Title", "BURGER MAPS LOCKED", 44, Gold, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.90f), Vector2.one, new Vector2(0f, 0f), new Vector2(0f, -18f));
             CreateAnchoredText(content, "Subtitle", "Eight maps carry viewer burger stakes", 20, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.84f), new Vector2(1f, 0.90f), new Vector2(0f, 0f), new Vector2(0f, -4f));
             var gridRoot = CreateRect("BurgerGridRoot", content, new Vector2(0f, 0f), new Vector2(1f, 0.80f), new Vector2(32f, 28f), new Vector2(-32f, -10f));
@@ -183,6 +247,11 @@ namespace BossRaid
 
         private void BuildModeRoulette()
         {
+            if (TryBuildPrefab("RouletteModeScreen", content))
+            {
+                return;
+            }
+
             CreateAnchoredText(content, "Title", "MODE ROULETTE", 50, Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.84f), Vector2.one, new Vector2(0f, 0f), new Vector2(0f, -36f));
             var modes = GetModes();
             var area = CreateRect("ModeArea", content, new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.76f), Vector2.zero, Vector2.zero);
@@ -204,6 +273,11 @@ namespace BossRaid
 
         private void BuildMapRoulette()
         {
+            if (TryBuildPrefab("RouletteMapScreen", content))
+            {
+                return;
+            }
+
             CreateAnchoredText(content, "Title", $"{state.selectedMode} MAP ROULETTE", 50, Cyan, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.84f), Vector2.one, new Vector2(0f, 0f), new Vector2(0f, -36f));
             var maps = new List<BossRaidMap>();
             for (var i = 0; i < state.mapPool.Count; i++)
@@ -220,6 +294,11 @@ namespace BossRaid
 
         private void BuildDifficultySelect()
         {
+            if (TryBuildPrefab("DifficultySelectScreen", content))
+            {
+                return;
+            }
+
             var panel = CreatePanel("DifficultySelect", content, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.045f, 0.05f, 0.07f, 0.94f));
             CreateAnchoredText(panel, "Title", "SELECT DIFFICULTY", 52, Gold, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.88f), Vector2.one, new Vector2(80f, 0f), new Vector2(-80f, -18f));
             CreateAnchoredText(panel, "Lead", "Choose boss HP before the map roulette", 30, White, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.78f), new Vector2(1f, 0.88f), new Vector2(80f, 0f), new Vector2(-80f, 0f));
@@ -252,6 +331,11 @@ namespace BossRaid
 
         private void BuildMapReady()
         {
+            if (TryBuildPrefab("MapReadyScreen", content))
+            {
+                return;
+            }
+
             CreatePanel("ReadyStage", content, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Panel);
             BuildSpectatorSlots(content);
 
@@ -265,6 +349,11 @@ namespace BossRaid
 
         private void BuildInGame()
         {
+            if (TryBuildPrefab("InGameScreen", content))
+            {
+                return;
+            }
+
             CreatePanel("RaidStage", content, new Vector2(0f, 0.30f), Vector2.one, Vector2.zero, Vector2.zero, Panel);
             BuildSpectatorSlots(content);
 
@@ -274,6 +363,11 @@ namespace BossRaid
 
         private void BuildResult()
         {
+            if (TryBuildPrefab("ResultScreen", content))
+            {
+                return;
+            }
+
             var isClear = state.lastResult == BossRaidResults.Clear;
             var bannerColor = isClear ? Green : Red;
             var result = CreatePanel("ResultPanel", content, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.035f, 0.04f, 0.055f, 0.96f));
@@ -313,9 +407,9 @@ namespace BossRaid
 
         private void BuildSpectatorSlots(RectTransform parent)
         {
-            var root = CreateRect("SpectatorSlots", parent, new Vector2(0.03f, 0.32f), new Vector2(0.97f, 0.88f), Vector2.zero, Vector2.zero);
+            var root = CreateRect("SpectatorSlots", parent, new Vector2(0.5f, 0.62f), new Vector2(0.5f, 0.62f), new Vector2(-740f, -178f), new Vector2(740f, 178f));
             var layout = root.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 14f;
+            layout.spacing = 20f;
             layout.childForceExpandHeight = true;
             layout.childForceExpandWidth = true;
 
@@ -519,6 +613,357 @@ namespace BossRaid
             AddOutline(tile, Line, 1f);
             CreateAnchoredText(tile, "Label", label, 17, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.60f), Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, -6f));
             CreateAnchoredText(tile, "Value", value, 30, color, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.56f), new Vector2(8f, 8f), new Vector2(-8f, -2f));
+        }
+
+        private bool TryBuildPrefab(string resourceName, Transform parent)
+        {
+            if (!usePrefabUi)
+            {
+                return false;
+            }
+
+            var prefab = Resources.Load<GameObject>(PrefabResourcePath + resourceName);
+            if (prefab == null)
+            {
+                return false;
+            }
+
+            var instance = Instantiate(prefab, parent, false);
+            instance.name = resourceName;
+            var rect = instance.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.one;
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+            }
+
+            ApplyPrefabBindings(instance.transform, null);
+            return true;
+        }
+
+        private void ApplyPrefabBindings(Transform rootTransform, PrefabContext context)
+        {
+            var bindings = rootTransform.GetComponentsInChildren<BossRaidUiBinding>(true);
+            for (var i = 0; i < bindings.Length; i++)
+            {
+                ApplyPrefabBinding(bindings[i], context);
+            }
+        }
+
+        private void ApplyPrefabBinding(BossRaidUiBinding binding, PrefabContext context)
+        {
+            if (binding == null)
+            {
+                return;
+            }
+
+            var activeContext = context ?? ResolvePrefabContext(binding);
+            if (binding.key == "ItemVisual")
+            {
+                UpdatePrefabItemVisuals(binding.gameObject, activeContext);
+            }
+
+            var value = ResolvePrefabText(binding.key, activeContext);
+            var text = binding.GetComponent<Text>();
+            if (text != null && !string.IsNullOrEmpty(binding.key))
+            {
+                text.text = value;
+                if (binding.key == "ConnectionStatus")
+                {
+                    connectionText = text;
+                }
+            }
+
+            if (binding.hideWhenEmpty)
+            {
+                binding.gameObject.SetActive(!string.IsNullOrEmpty(value));
+            }
+
+            var color = ResolvePrefabColor(binding.colorRole, activeContext);
+            if (binding.colorRole != BossRaidUiColorRole.None)
+            {
+                if (text != null)
+                {
+                    text.color = color;
+                }
+
+                var graphic = binding.GetComponent<Graphic>();
+                if (graphic != null && graphic != text)
+                {
+                    graphic.color = color;
+                }
+            }
+
+            if (binding.key == "BossDamageFill")
+            {
+                var rect = binding.GetComponent<RectTransform>();
+                if (rect != null)
+                {
+                    var ratio = state.bossHp <= 0 ? 1f : Mathf.Clamp01((float)state.totalScore / state.bossHp);
+                    rect.anchorMin = Vector2.zero;
+                    rect.anchorMax = new Vector2(ratio, 1f);
+                    rect.offsetMin = Vector2.zero;
+                    rect.offsetMax = Vector2.zero;
+                }
+            }
+        }
+
+        private PrefabContext ResolvePrefabContext(BossRaidUiBinding binding)
+        {
+            var index = Mathf.Max(0, binding.index);
+            switch (binding.source)
+            {
+                case BossRaidUiBindingSource.Team:
+                    if (index < state.teams.Count)
+                    {
+                        var team = state.teams[index];
+                        return new PrefabContext { team = team, index = index, selected = team.id == state.currentTeamId };
+                    }
+                    break;
+                case BossRaidUiBindingSource.Mode:
+                    var modes = GetModes();
+                    if (index < modes.Count)
+                    {
+                        var mode = modes[index];
+                        return new PrefabContext { mode = mode, index = index, selected = mode == state.selectedMode };
+                    }
+                    break;
+                case BossRaidUiBindingSource.Difficulty:
+                    if (index < state.difficulties.Count)
+                    {
+                        var difficulty = state.difficulties[index];
+                        return new PrefabContext { difficulty = difficulty, index = index, selected = difficulty.id == state.difficulty };
+                    }
+                    break;
+                case BossRaidUiBindingSource.SelectedModeMap:
+                    var selectedMode = state.selectedMode;
+                    if (string.IsNullOrEmpty(selectedMode))
+                    {
+                        var modeList = GetModes();
+                        selectedMode = modeList.Count > 0 ? modeList[0] : "";
+                    }
+
+                    var mapsForMode = GetMapsForMode(selectedMode);
+                    if (index < mapsForMode.Count)
+                    {
+                        var map = mapsForMode[index];
+                        var isRoundMap = state.selectedRoundMapIds.Count == 0 || state.selectedRoundMapIds.Contains(map.id);
+                        return new PrefabContext { map = map, index = index, selected = map.id == state.selectedMapId, roundMap = isRoundMap };
+                    }
+                    break;
+                case BossRaidUiBindingSource.BurgerMap:
+                    if (index < state.mapPool.Count)
+                    {
+                        var map = state.mapPool[index];
+                        var isRoundMap = state.selectedRoundMapIds.Count == 0 || state.selectedRoundMapIds.Contains(map.id);
+                        return new PrefabContext { map = map, index = index, selected = map.id == state.selectedMapId, roundMap = isRoundMap };
+                    }
+                    break;
+                case BossRaidUiBindingSource.ResultStat:
+                    return BuildResultStatContext(index);
+                case BossRaidUiBindingSource.Spectator:
+                    return new PrefabContext { index = index };
+            }
+
+            return null;
+        }
+
+        private PrefabContext BuildResultStatContext(int index)
+        {
+            switch (index)
+            {
+                case 0:
+                    return new PrefabContext { statLabel = "Prize Pool", statValue = FormatWon(state.prizePool), statColor = Gold, index = index };
+                case 1:
+                    return new PrefabContext { statLabel = "Burgers", statValue = state.burgerCount.ToString(), statColor = Gold, index = index };
+                case 2:
+                    return new PrefabContext { statLabel = "Burger Miss", statValue = state.burgerMissCount.ToString(), statColor = Red, index = index };
+                default:
+                    return new PrefabContext { statLabel = "Record", statValue = $"{state.clearCount}C {state.failCount}F", statColor = state.lastResult == BossRaidResults.Clear ? Green : Red, index = index };
+            }
+        }
+
+        private void UpdatePrefabItemVisuals(GameObject item, PrefabContext context)
+        {
+            if (item == null || context == null)
+            {
+                return;
+            }
+
+            var outline = item.GetComponent<Outline>();
+            if (outline != null)
+            {
+                if (context.team != null)
+                {
+                    outline.effectColor = context.selected ? context.team.color : Line;
+                    outline.effectDistance = context.selected ? new Vector2(3f, -3f) : new Vector2(1f, -1f);
+                }
+                else if (context.difficulty != null)
+                {
+                    outline.effectColor = context.selected ? GetDifficultyColor(context.difficulty.id) : Line;
+                    outline.effectDistance = context.selected ? new Vector2(4f, -4f) : new Vector2(1.2f, -1.2f);
+                }
+                else if (context.map != null)
+                {
+                    outline.effectColor = context.selected ? Cyan : context.map.isBurger ? Gold : Line;
+                    outline.effectDistance = context.selected ? new Vector2(4f, -4f) : new Vector2(1.5f, -1.5f);
+                }
+            }
+
+            var image = item.GetComponent<Image>();
+            if (image == null)
+            {
+                return;
+            }
+
+            if (context.difficulty != null && context.selected)
+            {
+                var color = GetDifficultyColor(context.difficulty.id);
+                image.color = new Color(color.r * 0.18f, color.g * 0.18f, color.b * 0.18f, 0.98f);
+            }
+            else if (context.map != null)
+            {
+                if (context.selected)
+                {
+                    image.color = new Color(0.06f, 0.14f, 0.18f, 0.98f);
+                }
+                else if (context.map.isBurger)
+                {
+                    image.color = new Color(0.14f, 0.095f, 0.035f, 0.98f);
+                }
+                else if (context.map.played || !context.roundMap)
+                {
+                    image.color = new Color(0.035f, 0.038f, 0.045f, 0.86f);
+                }
+            }
+        }
+
+        private string ResolvePrefabText(string key, PrefabContext context)
+        {
+            var map = state.SelectedMap;
+            var difficulty = state.CurrentDifficulty;
+            switch (key)
+            {
+                case "EventTitle":
+                    return state.eventTitle;
+                case "CurrentTeamName":
+                    return state.CurrentTeam != null ? state.CurrentTeam.name : "No Team";
+                case "HeaderMapTitle":
+                    return map != null ? map.title : "Waiting for map";
+                case "ScreenLabel":
+                    return GetScreenLabel();
+                case "ConnectionStatus":
+                    return socketClient != null ? socketClient.StatusLabel : state.connectionLabel;
+                case "PrizePool":
+                    return FormatWon(state.prizePool);
+                case "BurgerCount":
+                    return state.burgerCount.ToString();
+                case "Round":
+                    return $"{Mathf.Clamp(state.roundIndex + 1, 1, 8)} / 8";
+                case "Record":
+                    return $"{state.clearCount}C {state.failCount}F";
+                case "StandbySubtitle":
+                    return "Co-op boss raid overlay ready";
+                case "MapRouletteTitle":
+                    return string.IsNullOrEmpty(state.selectedMode) ? "MAP ROULETTE" : $"{state.selectedMode} MAP ROULETTE";
+                case "SelectedMapTitle":
+                    return map != null ? map.title : "No map selected";
+                case "SelectedMapDifficultyName":
+                    return map != null ? map.difficultyName : "Difficulty pending";
+                case "SelectedMapArtist":
+                    return map != null ? map.artist : "Artist pending";
+                case "SelectedMapMapper":
+                    return map != null ? map.mapper : "Mapper pending";
+                case "SelectedMapMode":
+                    return map != null && !string.IsNullOrEmpty(map.mode) ? $"Mode {map.mode}" : string.IsNullOrEmpty(state.selectedMode) ? "Mode pending" : $"Mode {state.selectedMode}";
+                case "CurrentDifficultyLabel":
+                    return difficulty != null ? difficulty.label : "Difficulty pending";
+                case "CurrentDifficultyHp":
+                    return difficulty != null ? $"HP {FormatNumber(difficulty.bossHp)}" : $"HP {FormatNumber(state.bossHp)}";
+                case "CurrentDifficultySummary":
+                    return difficulty != null ? $"{difficulty.label} / HP {FormatNumber(difficulty.bossHp)} / {FormatWon(difficulty.prize)}" : "Difficulty pending";
+                case "BossDifficultyLabel":
+                    return difficulty != null ? difficulty.label : "Difficulty pending";
+                case "BossDamageText":
+                    return $"{FormatNumber(state.totalScore)} / {FormatNumber(state.bossHp)}";
+                case "ResultText":
+                    return state.lastResult == BossRaidResults.Clear ? "CLEAR" : "FAILED";
+                case "ResultMessage":
+                    return string.IsNullOrEmpty(state.resultMessage) ? BuildResultMessage(state.lastResult == BossRaidResults.Clear) : state.resultMessage;
+                case "BurgerMarker":
+                    return map != null && map.isBurger ? "BURGER TARGET" : "";
+                case "TeamName":
+                    return context != null && context.team != null ? context.team.name : "";
+                case "TeamScore":
+                    return context != null && context.team != null ? FormatNumber(context.team.score) : "";
+                case "SpectatorLabel":
+                    return context != null ? $"SPECTATOR {context.index + 1}" : "SPECTATOR";
+                case "ModeName":
+                    return context != null ? context.mode : "";
+                case "ModeCount":
+                    return context != null ? $"{CountModeMaps(context.mode)} maps" : "";
+                case "DifficultySelected":
+                    return context != null && context.selected ? "CURRENT PICK" : "";
+                case "DifficultyLabel":
+                    return context != null && context.difficulty != null ? context.difficulty.label : "";
+                case "DifficultyHp":
+                    return context != null && context.difficulty != null ? $"HP {FormatNumber(context.difficulty.bossHp)}" : "";
+                case "DifficultyPrize":
+                    return context != null && context.difficulty != null ? $"+{FormatWon(context.difficulty.prize)}" : "";
+                case "MapTitle":
+                    return context != null && context.map != null ? context.map.title : "";
+                case "MapSubtitle":
+                    if (context == null || context.map == null)
+                    {
+                        return "";
+                    }
+                    return state.screen == BossRaidScreens.RouletteMap ? context.map.difficultyName : $"{context.map.mode} / {context.map.id}";
+                case "MapId":
+                    return context != null && context.map != null ? context.map.id : "";
+                case "MapBurgerTag":
+                    return context != null && context.map != null && context.map.isBurger ? "BURGER" : "";
+                case "StatLabel":
+                    return context != null ? context.statLabel : "";
+                case "StatValue":
+                    return context != null ? context.statValue : "";
+                default:
+                    return "";
+            }
+        }
+
+        private Color ResolvePrefabColor(BossRaidUiColorRole role, PrefabContext context)
+        {
+            switch (role)
+            {
+                case BossRaidUiColorRole.White:
+                    return White;
+                case BossRaidUiColorRole.Muted:
+                    return Muted;
+                case BossRaidUiColorRole.Red:
+                    return Red;
+                case BossRaidUiColorRole.Green:
+                    return Green;
+                case BossRaidUiColorRole.Cyan:
+                    return Cyan;
+                case BossRaidUiColorRole.Gold:
+                    return Gold;
+                case BossRaidUiColorRole.CurrentTeam:
+                    return state.CurrentTeam != null ? state.CurrentTeam.color : Cyan;
+                case BossRaidUiColorRole.Team:
+                    return context != null && context.team != null ? context.team.color : Cyan;
+                case BossRaidUiColorRole.Screen:
+                    return GetScreenColor();
+                case BossRaidUiColorRole.Difficulty:
+                    return context != null && context.difficulty != null ? GetDifficultyColor(context.difficulty.id) : GetDifficultyColor(state.difficulty);
+                case BossRaidUiColorRole.Result:
+                    return state.lastResult == BossRaidResults.Clear ? Green : Red;
+                case BossRaidUiColorRole.Context:
+                    return context != null ? context.statColor : White;
+                default:
+                    return White;
+            }
         }
 
         private void UpdateConnectionStatus(string status)
