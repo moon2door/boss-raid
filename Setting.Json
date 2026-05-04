@@ -1,0 +1,276 @@
+{
+  "eventTitle": "BOSS RAID",
+  "currentTeamId": "team-1",
+  "difficulty": "normal",
+  "teams": [
+    {
+      "id": "team-1",
+      "name": "삼랄부마스터",
+      "color": "#f24033",
+      "players": [
+        "Yiriru",
+        "moon2door",
+        "AXDVGN",
+        "Lezhic",
+        "VIichan",
+        "A"
+      ]
+    },
+    {
+      "id": "team-2",
+      "name": "Team B",
+      "color": "#338cf2",
+      "players": []
+    },
+    {
+      "id": "team-3",
+      "name": "Team C",
+      "color": "#40d96f",
+      "players": []
+    },
+    {
+      "id": "team-4",
+      "name": "Team D",
+      "color": "#f2bf33",
+      "players": []
+    }
+  ],
+  "difficulties": [
+    {
+      "id": "easy",
+      "label": "Easy",
+      "bossHp": 1000000,
+      "prize": 3000
+    },
+    {
+      "id": "normal",
+      "label": "Normal",
+      "bossHp": 1400000,
+      "prize": 5000
+    },
+    {
+      "id": "hard",
+      "label": "Hard",
+      "bossHp": 2000000,
+      "prize": 15000
+    }
+  ],
+  "maps": [
+    {
+      "id": "NM1",
+      "mode": "NM",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "NM2",
+      "mode": "NM",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "NM3",
+      "mode": "NM",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "NM4",
+      "mode": "NM",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "NM5",
+      "mode": "NM",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "NM6",
+      "mode": "NM",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HD1",
+      "mode": "HD",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HD2",
+      "mode": "HD",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HD3",
+      "mode": "HD",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HD4",
+      "mode": "HD",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HD5",
+      "mode": "HD",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HD6",
+      "mode": "HD",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HR1",
+      "mode": "HR",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HR2",
+      "mode": "HR",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HR3",
+      "mode": "HR",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HR4",
+      "mode": "HR",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HR5",
+      "mode": "HR",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "HR6",
+      "mode": "HR",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "DT1",
+      "mode": "DT",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "DT2",
+      "mode": "DT",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "DT3",
+      "mode": "DT",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "DT4",
+      "mode": "DT",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "DT5",
+      "mode": "DT",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    },
+    {
+      "id": "DT6",
+      "mode": "DT",
+      "title": "Initial",
+      "artist": "Poppin'Party",
+      "mapper": "chaser01",
+      "difficultyName": "Even now, I'm searching for you.",
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+    }
+  ]
+}

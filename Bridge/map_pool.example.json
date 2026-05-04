@@ -1,0 +1,46 @@
+[
+  {
+    "id": "aim-1",
+    "mode": "Aim",
+    "title": "Aim Raid #1",
+    "artist": "Artist",
+    "mapper": "Mapper",
+    "difficultyName": "Expert",
+    "link": "https://osu.ppy.sh/beatmapsets/000001#osu/000001",
+    "isBurger": false,
+    "played": false
+  },
+  {
+    "id": "aim-2",
+    "mode": "Aim",
+    "title": "Aim Raid #2",
+    "artist": "Artist",
+    "mapper": "Mapper",
+    "difficultyName": "Expert",
+    "link": "https://osu.ppy.sh/beatmapsets/000002#osu/000002",
+    "isBurger": false,
+    "played": false
+  },
+  {
+    "id": "speed-1",
+    "mode": "Speed",
+    "title": "Speed Raid #1",
+    "artist": "Artist",
+    "mapper": "Mapper",
+    "difficultyName": "Expert",
+    "link": "https://osu.ppy.sh/beatmapsets/000003#osu/000003",
+    "isBurger": false,
+    "played": false
+  },
+  {
+    "id": "speed-2",
+    "mode": "Speed",
+    "title": "Speed Raid #2",
+    "artist": "Artist",
+    "mapper": "Mapper",
+    "difficultyName": "Expert",
+    "link": "https://osu.ppy.sh/beatmapsets/000004#osu/000004",
+    "isBurger": false,
+    "played": false
+  }
+]
