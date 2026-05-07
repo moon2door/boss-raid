@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "ircServer": "irc.ppy.sh",
+  "ircPort": 6667,
+  "ircUsername": "your_osu_username",
+  "ircPassword": "your_irc_password",
+  "mpChannel": "#mp_123456"
+}

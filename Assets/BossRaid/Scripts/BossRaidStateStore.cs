@@ -70,6 +70,11 @@ namespace BossRaid
                 selectedMode = "Aim",
                 selectedMapId = "aim-1",
                 connectionLabel = "LOCAL PREVIEW",
+                chatStatus = "LOCAL CHAT",
+                chatMessages = new List<BossRaidChatMessage>
+                {
+                    new BossRaidChatMessage { time = "00:00:00", sender = "Bridge", message = "Room chat preview", kind = "system" }
+                },
                 teams = new List<BossRaidTeam>
                 {
                     new BossRaidTeam { id = "team-1", name = "Team A", score = 0, color = new Color(0.95f, 0.25f, 0.2f) },
@@ -127,6 +132,11 @@ namespace BossRaid
             if (state.selectedRoundMapIds == null)
             {
                 state.selectedRoundMapIds = new List<string>();
+            }
+
+            if (state.chatMessages == null)
+            {
+                state.chatMessages = new List<BossRaidChatMessage>();
             }
 
             if (state.difficulties == null || state.difficulties.Count == 0)

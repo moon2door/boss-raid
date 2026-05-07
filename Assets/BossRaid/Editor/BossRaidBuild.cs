@@ -29,6 +29,8 @@ namespace BossRaid.Editor
                 File.Copy(settingSource, settingTarget, true);
             }
 
+            CopyFileIfExists(Path.Combine(projectRoot, "API.Json"), Path.Combine(outputDirectory, "API.Json"));
+            CopyFileIfExists(Path.Combine(projectRoot, "API.Json.example"), Path.Combine(outputDirectory, "API.Json.example"));
             CopyDirectoryIfExists(Path.Combine(projectRoot, "Bridge"), Path.Combine(outputDirectory, "Bridge"));
             CopyFileIfExists(Path.Combine(projectRoot, "README.md"), Path.Combine(outputDirectory, "README.md"));
             RemoveDoNotShipFolders(outputDirectory);

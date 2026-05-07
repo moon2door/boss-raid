@@ -145,7 +145,7 @@ namespace BossRaid.Editor
             SpectatorSlots(content);
             var chat = PanelRect("ReadyChat", content, Vector2.zero, new Vector2(0.30f, 0.22f), Vector2.zero, new Vector2(-14f, 0f), PanelAlt);
             Text(chat, "ChatTitle", "INGAME CHAT", "", 18, BossRaidUiColorRole.Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.68f), Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, -8f));
-            Text(chat, "ChatBody", "Waiting for the room to start...", "", 22, BossRaidUiColorRole.White, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.66f), new Vector2(18f, 12f), Vector2.zero);
+            Text(chat, "ChatBody", "Waiting for room chat...", "IngameChat", 18, BossRaidUiColorRole.White, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.66f), new Vector2(18f, 12f), Vector2.zero);
             var info = PanelRect("ReadyMapInfo", content, new Vector2(0.64f, 0f), new Vector2(1f, 0.28f), new Vector2(14f, 0f), Vector2.zero, PanelAlt);
             MapInfo(info, "MAP READY");
             return root;

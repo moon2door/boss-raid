@@ -341,7 +341,7 @@ namespace BossRaid
 
             var chat = CreatePanel("ReadyChat", content, Vector2.zero, new Vector2(0.30f, 0.22f), Vector2.zero, new Vector2(-14f, 0f), PanelAlt);
             CreateAnchoredText(chat, "ChatTitle", "INGAME CHAT", 18, Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.68f), Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, -8f));
-            CreateAnchoredText(chat, "ChatBody", "Waiting for the room to start...", 22, White, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.66f), new Vector2(18f, 12f), new Vector2(-18f, 0f));
+            CreateAnchoredText(chat, "ChatBody", BuildChatBody(), 18, White, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.66f), new Vector2(18f, 12f), new Vector2(-18f, 0f));
 
             var mapInfo = CreatePanel("ReadyMapInfo", content, new Vector2(0.64f, 0f), new Vector2(1f, 0.28f), new Vector2(14f, 0f), Vector2.zero, PanelAlt);
             BuildMapInfoPanel(mapInfo, "MAP READY");
@@ -640,7 +640,23 @@ namespace BossRaid
             }
 
             ApplyPrefabBindings(instance.transform, null);
+            ApplyPrefabDynamicText(instance.transform);
             return true;
+        }
+
+        private void ApplyPrefabDynamicText(Transform rootTransform)
+        {
+            var texts = rootTransform.GetComponentsInChildren<Text>(true);
+            for (var i = 0; i < texts.Length; i++)
+            {
+                if (texts[i].name == "ChatBody")
+                {
+                    texts[i].text = BuildChatBody();
+                    texts[i].fontSize = 18;
+                    texts[i].resizeTextMaxSize = 18;
+                    texts[i].resizeTextMinSize = 10;
+                }
+            }
         }
 
         private void ApplyPrefabBindings(Transform rootTransform, PrefabContext context)
@@ -856,6 +872,8 @@ namespace BossRaid
                     return GetScreenLabel();
                 case "ConnectionStatus":
                     return socketClient != null ? socketClient.StatusLabel : state.connectionLabel;
+                case "IngameChat":
+                    return BuildChatBody();
                 case "PrizePool":
                     return FormatWon(state.prizePool);
                 case "BurgerCount":
@@ -1049,6 +1067,48 @@ namespace BossRaid
             }
 
             return "Boss survived. Failure count increased.";
+        }
+
+        private string BuildChatBody()
+        {
+            if (state == null || state.chatMessages == null || state.chatMessages.Count == 0)
+            {
+                return "Waiting for room chat...";
+            }
+
+            var lines = new List<string>();
+            var start = Mathf.Max(0, state.chatMessages.Count - 5);
+            for (var i = start; i < state.chatMessages.Count; i++)
+            {
+                var item = state.chatMessages[i];
+                if (item == null)
+                {
+                    continue;
+                }
+
+                var message = CleanChatText(item.message);
+                if (string.IsNullOrEmpty(message))
+                {
+                    continue;
+                }
+
+                var time = CleanChatText(item.time);
+                var sender = CleanChatText(item.sender);
+                var prefix = string.IsNullOrEmpty(sender) ? "" : $"{sender}: ";
+                lines.Add(string.IsNullOrEmpty(time) ? $"{prefix}{message}" : $"[{time}] {prefix}{message}");
+            }
+
+            return lines.Count == 0 ? "Waiting for room chat..." : string.Join("\n", lines);
+        }
+
+        private static string CleanChatText(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "";
+            }
+
+            return value.Replace("\r", " ").Replace("\n", " ").Trim();
         }
 
         private List<string> GetModes()

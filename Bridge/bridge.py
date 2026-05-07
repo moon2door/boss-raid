@@ -29,6 +29,7 @@ def resolve_project_root():
 
 PROJECT_ROOT = resolve_project_root()
 SETTING_PATH = PROJECT_ROOT / "Setting.Json"
+API_PATH = PROJECT_ROOT / "API.Json"
 
 
 class BossRaidBridge:
@@ -79,6 +80,8 @@ class BossRaidBridge:
             "lastResult": "none",
             "resultMessage": "",
             "connectionLabel": "BRIDGE ONLINE",
+            "chatStatus": "IRC DISABLED",
+            "chatMessages": [],
             "teams": [
                 {"id": "team-1", "name": "Team A", "score": 0, "color": {"r": 0.95, "g": 0.25, "b": 0.20, "a": 1.0}},
                 {"id": "team-2", "name": "Team B", "score": 0, "color": {"r": 0.20, "g": 0.55, "b": 0.95, "a": 1.0}},
@@ -267,6 +270,12 @@ class BossRaidBridge:
         if not state.get("selectedRoundMapIds"):
             state["selectedRoundMapIds"] = [m["id"] for m in state.get("mapPool", [])]
 
+        if "chatStatus" not in state:
+            state["chatStatus"] = "IRC DISABLED"
+        if not isinstance(state.get("chatMessages"), list):
+            state["chatMessages"] = []
+        del state["chatMessages"][:-8]
+
     @staticmethod
     def _team_in_state(state, team_id):
         for team in state.get("teams", []):
@@ -310,6 +319,32 @@ class BossRaidBridge:
                 client.close()
             except OSError:
                 pass
+
+    def set_chat_status(self, status):
+        with self.lock:
+            self.state["chatStatus"] = str(status)[:80]
+            self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+        self.broadcast()
+
+    def add_chat_message(self, sender, message, kind="chat"):
+        sender = str(sender or "system")[:32]
+        message = str(message or "").replace("\r", " ").replace("\n", " ").strip()
+        if not message:
+            return
+
+        with self.lock:
+            messages = self.state.setdefault("chatMessages", [])
+            messages.append(
+                {
+                    "time": time.strftime("%H:%M:%S"),
+                    "sender": sender,
+                    "message": message[:220],
+                    "kind": str(kind or "chat")[:20],
+                }
+            )
+            del messages[:-8]
+            self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+        self.broadcast()
 
     def apply_command(self, command):
         if not isinstance(command, dict):
@@ -408,6 +443,22 @@ class BossRaidBridge:
                 maps = command.get("maps")
                 if isinstance(maps, list) and maps:
                     self._load_maps_locked(maps)
+            elif command_type == "clear_chat":
+                self.state["chatMessages"] = []
+            elif command_type == "add_chat_message":
+                message = str(command.get("message", "")).replace("\r", " ").replace("\n", " ").strip()
+                if not message:
+                    return self.snapshot()
+                messages = self.state.setdefault("chatMessages", [])
+                messages.append(
+                    {
+                        "time": time.strftime("%H:%M:%S"),
+                        "sender": str(command.get("sender", "Bridge"))[:32],
+                        "message": message[:220],
+                        "kind": str(command.get("kind", "system"))[:20],
+                    }
+                )
+                del messages[:-8]
             else:
                 raise ValueError(f"unknown command type: {command_type}")
 
@@ -559,6 +610,213 @@ class BossRaidBridge:
             return float(value)
         except (TypeError, ValueError):
             return fallback
+
+
+def load_api_config():
+    if not API_PATH.exists():
+        print(f"[API] Missing {API_PATH}. IRC chat is disabled.", flush=True)
+        return None
+
+    try:
+        with API_PATH.open("r", encoding="utf-8-sig") as api_file:
+            config = json.load(api_file)
+    except Exception as exc:
+        print(f"[API] Failed to read {API_PATH}: {exc}", flush=True)
+        return None
+
+    if not isinstance(config, dict):
+        print(f"[API] Failed to read {API_PATH}: root must be a JSON object", flush=True)
+        return None
+
+    enabled = bool(config.get("enabled", False))
+    username = str(config.get("ircUsername", "")).strip()
+    password = str(config.get("ircPassword", "")).strip()
+    channel = str(config.get("mpChannel", "")).strip()
+    server = str(config.get("ircServer", "irc.ppy.sh")).strip() or "irc.ppy.sh"
+    port = BossRaidBridge._to_int(config.get("ircPort", 6667), 6667)
+
+    if not enabled:
+        print("[API] IRC chat disabled. Set enabled=true in API.Json to connect.", flush=True)
+        return None
+
+    if not username or not password or not channel:
+        print("[API] IRC chat disabled. Fill ircUsername, ircPassword, and mpChannel in API.Json.", flush=True)
+        return None
+
+    if not channel.startswith("#"):
+        channel = "#" + channel
+
+    print(f"[API] IRC chat enabled. Server={server}:{port}, user={username.replace(' ', '_')}, channel={channel}", flush=True)
+    return {
+        "server": server,
+        "port": port,
+        "username": username.replace(" ", "_"),
+        "password": password,
+        "channel": channel,
+    }
+
+
+class BanchoIrcChatClient:
+    def __init__(self, bridge, config):
+        self.bridge = bridge
+        self.config = config
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.sock = None
+        self.connected = False
+
+    def start(self):
+        if self.thread is not None:
+            return
+        self.thread = threading.Thread(target=self._run, name="BanchoIrcChatClient", daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        if self.sock is not None:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
+                self.sock.close()
+            except OSError:
+                pass
+        if self.thread is not None:
+            self.thread.join(timeout=2.0)
+
+    def _run(self):
+        reconnect_delay = 5
+        while not self.stop_event.is_set():
+            try:
+                self._connect_and_read()
+            except Exception as exc:
+                if self.stop_event.is_set():
+                    break
+                status = f"IRC RETRYING: {type(exc).__name__}"
+                print(f"[IRC] {status}: {exc}", flush=True)
+                self.bridge.set_chat_status(status)
+                self.stop_event.wait(reconnect_delay)
+
+    def _connect_and_read(self):
+        server = self.config["server"]
+        port = self.config["port"]
+        username = self.config["username"]
+        channel = self.config["channel"]
+
+        self.connected = False
+        self.bridge.set_chat_status("IRC CONNECTING")
+        print(f"[IRC] Connecting to {server}:{port} as {username}", flush=True)
+        self.bridge.add_chat_message("Bridge", f"Connecting to room chat {channel}", "system")
+
+        with socket.create_connection((server, port), timeout=20) as sock_obj:
+            self.sock = sock_obj
+            sock_obj.settimeout(1.0)
+            self._send_raw(f"PASS {self.config['password']}")
+            self._send_raw(f"NICK {username}")
+            self._send_raw(f"USER {username} 0 * :{username}")
+
+            buffer = ""
+            joined = False
+            welcome_received = False
+            while not self.stop_event.is_set():
+                try:
+                    chunk = sock_obj.recv(4096)
+                except socket.timeout:
+                    continue
+
+                if not chunk:
+                    if not welcome_received:
+                        raise ConnectionError("IRC socket closed before welcome. Check IRC password, duplicate IRC login, or temporary Bancho auth limit.")
+                    raise ConnectionError("IRC socket closed")
+
+                buffer += chunk.decode("utf-8", errors="replace")
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    line = line.rstrip("\r")
+                    if not line:
+                        continue
+
+                    if line.startswith("PING "):
+                        self._send_raw("PONG " + line[5:])
+                        continue
+
+                    print(f"[IRC] {line}", flush=True)
+
+                    parts = line.split(" ")
+                    if len(parts) >= 2 and parts[1] == "001" and not joined:
+                        welcome_received = True
+                        self._send_raw(f"JOIN {channel}")
+                        joined = True
+                        print(f"[IRC] Login accepted. Joining room chat {channel}", flush=True)
+                        self.bridge.set_chat_status(f"IRC JOINING {channel}")
+                        continue
+
+                    if len(parts) >= 2 and parts[1] in ("403", "464", "465", "473", "475"):
+                        self._handle_irc_error(parts[1], line)
+                        continue
+
+                    if len(parts) >= 3 and parts[1] == "JOIN" and self._nick_from_prefix(parts[0]) == username:
+                        self._mark_connected("JOIN")
+                        continue
+
+                    if len(parts) >= 4 and parts[1] == "366" and parts[3].lower() == channel.lower():
+                        self._mark_connected("NAMES")
+                        continue
+
+                    parsed = self._parse_privmsg(line)
+                    if parsed is not None:
+                        sender, target, message = parsed
+                        if target.lower() == channel.lower():
+                            self._mark_connected("PRIVMSG")
+                            self.bridge.add_chat_message(sender.replace("_", " "), message, "chat")
+
+    def _mark_connected(self, source):
+        if self.connected:
+            return
+
+        channel = self.config["channel"]
+        self.connected = True
+        print(f"[IRC] Room chat connected: {channel} ({source})", flush=True)
+        self.bridge.set_chat_status(f"IRC CONNECTED {channel}")
+        self.bridge.add_chat_message("Bridge", f"Connected to room chat {channel}", "system")
+
+    def _handle_irc_error(self, code, line):
+        labels = {
+            "403": "no such channel",
+            "464": "password rejected",
+            "465": "you are banned from server",
+            "473": "invite only channel",
+            "475": "bad channel key",
+        }
+        label = labels.get(code, "IRC error")
+        status = f"IRC ERROR: {label}"
+        print(f"[IRC] {status}: {line}", flush=True)
+        self.bridge.set_chat_status(status[:80])
+        self.bridge.add_chat_message("Bridge", status, "system")
+
+    def _send_raw(self, line):
+        if self.sock is None:
+            return
+        print(f"[IRC SEND] {self._redact(line)}", flush=True)
+        self.sock.sendall((line + "\r\n").encode("utf-8"))
+
+    @staticmethod
+    def _redact(line):
+        return "PASS ********" if line.startswith("PASS ") else line
+
+    @staticmethod
+    def _nick_from_prefix(prefix):
+        return prefix.lstrip(":").split("!", 1)[0]
+
+    @staticmethod
+    def _parse_privmsg(line):
+        if " PRIVMSG " not in line or " :" not in line:
+            return None
+
+        prefix, rest = line.split(" PRIVMSG ", 1)
+        target, message = rest.split(" :", 1)
+        return BanchoIrcChatClient._nick_from_prefix(prefix), target.strip(), message
 
 
 BRIDGE = BossRaidBridge()
@@ -801,6 +1059,17 @@ INDEX_HTML = r"""<!doctype html>
     .map.burger { border-color: #b88224; }
     .map.played { opacity: .48; }
     .map small { color: #94a3b8; display: block; margin-top: 4px; }
+    .chat-list { display: grid; gap: 6px; max-height: 260px; overflow: auto; }
+    .chat-line {
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #0e131d;
+      border: 1px solid #2b3444;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .chat-line strong { color: #58c8ff; }
+    .chat-line time { color: #94a3b8; font-size: 11px; margin-right: 8px; }
     a { color: #58c8ff; }
     textarea { min-height: 240px; resize: vertical; font-family: Consolas, monospace; font-size: 12px; }
     label { display: block; color: #aeb9c8; font-size: 12px; font-weight: 700; margin: 8px 0 5px; }
@@ -842,11 +1111,19 @@ INDEX_HTML = r"""<!doctype html>
 
       <h2 style="margin-top:18px">Scores</h2>
       <div id="scoreRows"></div>
+
+      <h2 style="margin-top:18px">Room Chat</h2>
+      <div class="grid two">
+        <button onclick="cmd('add_chat_message', {sender:'Bridge', message:'Chat test message'})">Test Chat</button>
+        <button onclick="cmd('clear_chat')">Clear Chat</button>
+      </div>
     </section>
 
     <section>
       <h2>Live State</h2>
       <div class="stat-grid" id="stats"></div>
+      <h2 style="margin-top:18px">Room Chat</h2>
+      <div class="chat-list" id="chat"></div>
       <h2 style="margin-top:18px">Map Pool</h2>
       <div class="map-list" id="maps"></div>
     </section>
@@ -918,6 +1195,7 @@ INDEX_HTML = r"""<!doctype html>
       renderSelects();
       renderScores();
       renderStats();
+      renderChat();
       renderMaps();
       document.getElementById('mapJson').value = JSON.stringify(state.mapPool, null, 2);
     }
@@ -950,9 +1228,21 @@ INDEX_HTML = r"""<!doctype html>
         ['Difficulty', state.difficulty],
         ['Boss HP', num(state.bossHp)],
         ['Total Score', num(state.totalScore)],
+        ['Chat', state.chatStatus || '-'],
         ['Selected Map', selected ? selected.title : '-']
       ];
       document.getElementById('stats').innerHTML = stats.map(([label, value]) => `<div class="stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('');
+    }
+
+    function renderChat() {
+      const messages = state.chatMessages || [];
+      document.getElementById('chat').innerHTML = messages.length
+        ? messages.map(line => `
+          <div class="chat-line">
+            <time>${esc(line.time || '')}</time><strong>${esc(line.sender || 'system')}</strong>: ${esc(line.message || '')}
+          </div>
+        `).join('')
+        : '<div class="chat-line"><strong>Bridge</strong>: No room chat yet.</div>';
     }
 
     function renderMaps() {
@@ -992,11 +1282,18 @@ INDEX_HTML = r"""<!doctype html>
 
 def run_server(host=HOST, port=PORT):
     server = ThreadingHTTPServer((host, port), BridgeRequestHandler)
+    irc_client = None
+    api_config = load_api_config()
+    if api_config is not None:
+        irc_client = BanchoIrcChatClient(BRIDGE, api_config)
+        irc_client.start()
+
     print("========================================", flush=True)
     print(" Boss Raid Bridge", flush=True)
     print("========================================", flush=True)
     print(f"Working root      : {PROJECT_ROOT}", flush=True)
     print(f"Setting.Json path : {SETTING_PATH}", flush=True)
+    print(f"API.Json path     : {API_PATH}", flush=True)
     print(f"Boss Raid Bridge running: http://{host}:{port}")
     print(f"Unity WebSocket URL: ws://{host}:{port}/ws")
     print("Press Ctrl+C to stop.", flush=True)
@@ -1005,6 +1302,8 @@ def run_server(host=HOST, port=PORT):
     except KeyboardInterrupt:
         print("\nShutting down.")
     finally:
+        if irc_client is not None:
+            irc_client.stop()
         server.server_close()
 
 
@@ -1029,6 +1328,14 @@ def self_test():
     bridge.apply_command({"type": "set_difficulty", "difficulty": "easy"})
     bridge.apply_command({"type": "finish_map"})
     assert bridge.snapshot()["lastResult"] == "clear"
+    bridge.apply_command({"type": "add_chat_message", "sender": "Tester", "message": "hello"})
+    assert bridge.snapshot()["chatMessages"][-1]["message"] == "hello"
+    bridge.apply_command({"type": "clear_chat"})
+    assert bridge.snapshot()["chatMessages"] == []
+    irc = BanchoIrcChatClient(bridge, {"server": "irc.ppy.sh", "port": 6667, "username": "Tester", "password": "secret", "channel": "#mp_1"})
+    irc._mark_connected("TEST")
+    assert bridge.snapshot()["chatStatus"] == "IRC CONNECTED #mp_1"
+    assert bridge.snapshot()["chatMessages"][-1]["message"] == "Connected to room chat #mp_1"
     print("Bridge self-test passed.")
 
 

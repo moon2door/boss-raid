@@ -22,6 +22,16 @@ Unity receives one complete JSON state object per WebSocket message.
   "selectedMapId": "aim-1",
   "lastResult": "none",
   "resultMessage": "",
+  "connectionLabel": "BRIDGE ONLINE",
+  "chatStatus": "IRC DISABLED",
+  "chatMessages": [
+    {
+      "time": "15:00:00",
+      "sender": "player",
+      "message": "hello",
+      "kind": "chat"
+    }
+  ],
   "teams": [],
   "mapPool": [],
   "selectedRoundMapIds": [],
@@ -33,6 +43,7 @@ Unity receives one complete JSON state object per WebSocket message.
 
 - `standby`
 - `burgerReveal`
+- `difficultySelect`
 - `rouletteMode`
 - `rouletteMap`
 - `mapReady`
@@ -64,14 +75,21 @@ Supported command types:
 - `set_team_score`, with `teamId`, `score`
 - `set_scores`, with `scores` object keyed by team id
 - `assign_burgers`
+- `set_burger_maps`, with `mapIds`
 - `pick_round_maps`
+- `enter_difficulty_select`
+- `confirm_difficulty`, with `difficulty`
 - `spin_mode`
 - `spin_map`
+- `complete_mode_roulette`, with `mode`
+- `complete_map_roulette`, with `mapId`
 - `ready_map`
 - `start_map`
 - `finish_map`
 - `next_round`
 - `load_maps`, with a `maps` array
+- `add_chat_message`, with `sender`, `message`
+- `clear_chat`
 
 ## Result Rules
 

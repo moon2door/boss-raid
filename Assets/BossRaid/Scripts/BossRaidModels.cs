@@ -26,10 +26,12 @@ namespace BossRaid
         public string lastResult = BossRaidResults.None;
         public string resultMessage = "";
         public string connectionLabel = "LOCAL PREVIEW";
+        public string chatStatus = "LOCAL CHAT";
         public List<BossRaidTeam> teams = new List<BossRaidTeam>();
         public List<BossRaidMap> mapPool = new List<BossRaidMap>();
         public List<string> selectedRoundMapIds = new List<string>();
         public List<BossRaidDifficultyConfig> difficulties = new List<BossRaidDifficultyConfig>();
+        public List<BossRaidChatMessage> chatMessages = new List<BossRaidChatMessage>();
 
         public BossRaidTeam CurrentTeam
         {
@@ -110,6 +112,15 @@ namespace BossRaid
         public string label;
         public int bossHp;
         public int prize;
+    }
+
+    [Serializable]
+    public class BossRaidChatMessage
+    {
+        public string time;
+        public string sender;
+        public string message;
+        public string kind;
     }
 
     public static class BossRaidScreens
