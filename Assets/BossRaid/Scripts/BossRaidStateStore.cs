@@ -105,6 +105,7 @@ namespace BossRaid
                         mapper = "Staff",
                         difficultyName = $"Set {i}",
                         link = "",
+                        beatmapId = 0,
                         isBurger = i == 2 || i == 5,
                         played = false
                     });

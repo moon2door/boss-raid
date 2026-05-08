@@ -18,6 +18,9 @@ namespace BossRaid
         [SerializeField] private float burgerRouletteMinDurationSeconds = 2.2f;
         [SerializeField] private float burgerRouletteMaxDurationSeconds = 5.4f;
         [SerializeField] private int burgerPickCount = 8;
+        [SerializeField] private bool forceDesignResolution = true;
+        [SerializeField] private int designWidth = 1920;
+        [SerializeField] private int designHeight = 1080;
 
         private BossRaidStateStore stateStore;
         private BossRaidWebSocketClient bridgeClient;
@@ -47,8 +50,23 @@ namespace BossRaid
 
         private void Awake()
         {
+            ApplyDesignResolution();
             stateStore = GetComponent<BossRaidStateStore>();
             bridgeClient = GetComponent<BossRaidWebSocketClient>();
+        }
+
+        private void ApplyDesignResolution()
+        {
+            if (!forceDesignResolution)
+            {
+                return;
+            }
+
+            Application.runInBackground = true;
+            if (Screen.width != designWidth || Screen.height != designHeight || Screen.fullScreen)
+            {
+                Screen.SetResolution(designWidth, designHeight, false);
+            }
         }
 
         private void Update()

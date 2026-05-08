@@ -702,6 +702,11 @@ namespace BossRaid
             {
                 if (text != null)
                 {
+                    if (activeContext != null && !string.IsNullOrEmpty(activeContext.mode) && binding.key == "ModeName")
+                    {
+                        color = activeContext.selected ? Cyan : White;
+                    }
+
                     text.color = color;
                 }
 
@@ -821,6 +826,11 @@ namespace BossRaid
                     outline.effectColor = context.selected ? GetDifficultyColor(context.difficulty.id) : Line;
                     outline.effectDistance = context.selected ? new Vector2(4f, -4f) : new Vector2(1.2f, -1.2f);
                 }
+                else if (!string.IsNullOrEmpty(context.mode))
+                {
+                    outline.effectColor = context.selected ? Cyan : Line;
+                    outline.effectDistance = context.selected ? new Vector2(4f, -4f) : new Vector2(1.2f, -1.2f);
+                }
                 else if (context.map != null)
                 {
                     outline.effectColor = context.selected ? Cyan : context.map.isBurger ? Gold : Line;
@@ -838,6 +848,12 @@ namespace BossRaid
             {
                 var color = GetDifficultyColor(context.difficulty.id);
                 image.color = new Color(color.r * 0.18f, color.g * 0.18f, color.b * 0.18f, 0.98f);
+            }
+            else if (!string.IsNullOrEmpty(context.mode))
+            {
+                image.color = context.selected
+                    ? new Color(0.06f, 0.14f, 0.18f, 0.98f)
+                    : Panel;
             }
             else if (context.map != null)
             {
@@ -1077,11 +1093,24 @@ namespace BossRaid
             }
 
             var lines = new List<string>();
-            var start = Mathf.Max(0, state.chatMessages.Count - 5);
-            for (var i = start; i < state.chatMessages.Count; i++)
+            AppendPlayerChatLines(lines);
+
+            return lines.Count == 0 ? "Waiting for player chat..." : string.Join("\n", lines);
+        }
+
+        private void AppendPlayerChatLines(List<string> lines)
+        {
+            var candidates = new List<string>();
+            for (var i = state.chatMessages.Count - 1; i >= 0 && candidates.Count < 5; i--)
             {
                 var item = state.chatMessages[i];
                 if (item == null)
+                {
+                    continue;
+                }
+
+                var kind = CleanChatText(item.kind);
+                if (!string.Equals(kind, "chat", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -1092,13 +1121,31 @@ namespace BossRaid
                     continue;
                 }
 
-                var time = CleanChatText(item.time);
                 var sender = CleanChatText(item.sender);
+                if (IsHiddenChatSender(sender) || IsHiddenChatMessage(message))
+                {
+                    continue;
+                }
+
                 var prefix = string.IsNullOrEmpty(sender) ? "" : $"{sender}: ";
-                lines.Add(string.IsNullOrEmpty(time) ? $"{prefix}{message}" : $"[{time}] {prefix}{message}");
+                candidates.Add($"{prefix}{message}");
             }
 
-            return lines.Count == 0 ? "Waiting for room chat..." : string.Join("\n", lines);
+            for (var i = candidates.Count - 1; i >= 0; i--)
+            {
+                lines.Add(candidates[i]);
+            }
+        }
+
+        private static bool IsHiddenChatSender(string sender)
+        {
+            return string.Equals(sender, "Bridge", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(sender, "BanchoBot", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsHiddenChatMessage(string message)
+        {
+            return message.StartsWith("!mp ", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string CleanChatText(string value)

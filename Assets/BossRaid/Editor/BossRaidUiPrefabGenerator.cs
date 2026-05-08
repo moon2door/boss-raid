@@ -19,6 +19,7 @@ namespace BossRaid.Editor
         private static readonly Color Green = new Color(0.22f, 0.85f, 0.48f, 1f);
         private static readonly Color Cyan = new Color(0.25f, 0.78f, 1f, 1f);
         private static readonly Color Gold = new Color(1f, 0.72f, 0.22f, 1f);
+        private static readonly Vector2 DesignResolution = new Vector2(1920f, 1080f);
 
         [MenuItem("Boss Raid/Generate UI Prefabs")]
         public static void GenerateDefaultPrefabs()
@@ -184,11 +185,10 @@ namespace BossRaid.Editor
         {
             var root = new GameObject(name, typeof(RectTransform));
             var rect = root.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            rect.sizeDelta = new Vector2(1920f, 1080f);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = DesignResolution;
             root.AddComponent<Image>().color = Background;
             Accent(root.transform, 0.06f, Red);
             Accent(root.transform, 0.38f, Cyan);

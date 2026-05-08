@@ -33,7 +33,20 @@ Unity receives one complete JSON state object per WebSocket message.
     }
   ],
   "teams": [],
-  "mapPool": [],
+  "mapPool": [
+    {
+      "id": "NM1",
+      "mode": "NM",
+      "title": "Map title",
+      "artist": "Artist",
+      "mapper": "Mapper",
+      "difficultyName": "Difficulty",
+      "link": "https://osu.ppy.sh/beatmapsets/1#osu/123456",
+      "beatmapId": 123456,
+      "isBurger": false,
+      "played": false
+    }
+  ],
   "selectedRoundMapIds": [],
   "difficulties": []
 }
@@ -83,6 +96,7 @@ Supported command types:
 - `spin_map`
 - `complete_mode_roulette`, with `mode`
 - `complete_map_roulette`, with `mapId`
+- `send_mp_setup`
 - `ready_map`
 - `start_map`
 - `finish_map`

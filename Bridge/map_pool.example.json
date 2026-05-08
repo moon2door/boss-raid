@@ -7,6 +7,7 @@
     "mapper": "Mapper",
     "difficultyName": "Expert",
     "link": "https://osu.ppy.sh/beatmapsets/000001#osu/000001",
+    "beatmapId": 1,
     "isBurger": false,
     "played": false
   },
@@ -18,6 +19,7 @@
     "mapper": "Mapper",
     "difficultyName": "Expert",
     "link": "https://osu.ppy.sh/beatmapsets/000002#osu/000002",
+    "beatmapId": 2,
     "isBurger": false,
     "played": false
   },
@@ -29,6 +31,7 @@
     "mapper": "Mapper",
     "difficultyName": "Expert",
     "link": "https://osu.ppy.sh/beatmapsets/000003#osu/000003",
+    "beatmapId": 3,
     "isBurger": false,
     "played": false
   },
@@ -40,6 +43,7 @@
     "mapper": "Mapper",
     "difficultyName": "Expert",
     "link": "https://osu.ppy.sh/beatmapsets/000004#osu/000004",
+    "beatmapId": 4,
     "isBurger": false,
     "played": false
   }

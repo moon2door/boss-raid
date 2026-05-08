@@ -1,4 +1,4 @@
-{
+﻿{
   "eventTitle": "BOSS RAID",
   "currentTeamId": "team-1",
   "difficulty": "normal",
@@ -63,7 +63,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "NM2",
@@ -72,7 +73,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "NM3",
@@ -81,7 +83,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "NM4",
@@ -90,7 +93,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "NM5",
@@ -99,7 +103,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "NM6",
@@ -108,7 +113,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HD1",
@@ -117,7 +123,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HD2",
@@ -126,7 +133,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HD3",
@@ -135,7 +143,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HD4",
@@ -144,7 +153,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HD5",
@@ -153,7 +163,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HD6",
@@ -162,7 +173,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HR1",
@@ -171,7 +183,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HR2",
@@ -180,7 +193,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HR3",
@@ -189,7 +203,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HR4",
@@ -198,7 +213,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HR5",
@@ -207,7 +223,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "HR6",
@@ -216,7 +233,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "DT1",
@@ -225,7 +243,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "DT2",
@@ -234,7 +253,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "DT3",
@@ -243,7 +263,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "DT4",
@@ -252,7 +273,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "DT5",
@@ -261,7 +283,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     },
     {
       "id": "DT6",
@@ -270,7 +293,8 @@
       "artist": "Poppin'Party",
       "mapper": "chaser01",
       "difficultyName": "Even now, I'm searching for you.",
-      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"
+      "link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307",
+      "beatmapId": 3427307
     }
   ]
 }

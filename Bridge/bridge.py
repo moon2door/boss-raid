@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 import random
+import re
 import socket
 import struct
 import sys
@@ -36,6 +37,7 @@ class BossRaidBridge:
     def __init__(self, load_settings=True):
         self.lock = threading.RLock()
         self.clients = set()
+        self.irc_client = None
         self.state = self._state_from_setting() if load_settings else self._default_state()
 
     def _default_state(self):
@@ -54,6 +56,7 @@ class BossRaidBridge:
                         "mapper": "Staff",
                         "difficultyName": f"Set {index}",
                         "link": "",
+                        "beatmapId": 0,
                         "isBurger": False,
                         "played": False,
                     }
@@ -219,11 +222,25 @@ class BossRaidBridge:
                     "mapper": str(raid_map.get("mapper", ""))[:80],
                     "difficultyName": str(raid_map.get("difficultyName", ""))[:80],
                     "link": str(raid_map.get("link", raid_map.get("url", "")))[:220],
+                    "beatmapId": self._extract_beatmap_id(raid_map),
                     "isBurger": bool(raid_map.get("isBurger", False)),
                     "played": bool(raid_map.get("played", False)),
                 }
             )
         return sanitized[:24] or self._default_state()["mapPool"]
+
+    def _extract_beatmap_id(self, raid_map):
+        direct = self._to_int(raid_map.get("beatmapId", raid_map.get("beatmap_id", 0)), 0)
+        if direct > 0:
+            return direct
+
+        link = str(raid_map.get("link", raid_map.get("url", "")))
+        match = re.search(r"#(?:osu|taiko|fruits|mania)/(\d+)", link)
+        if match:
+            return self._to_int(match.group(1), 0)
+
+        match = re.search(r"/b/(\d+)", link)
+        return self._to_int(match.group(1), 0) if match else 0
 
     def _sanitize_color(self, color):
         if isinstance(color, str) and color.startswith("#") and len(color) in (7, 9):
@@ -274,7 +291,7 @@ class BossRaidBridge:
             state["chatStatus"] = "IRC DISABLED"
         if not isinstance(state.get("chatMessages"), list):
             state["chatMessages"] = []
-        del state["chatMessages"][:-8]
+        del state["chatMessages"][:-30]
 
     @staticmethod
     def _team_in_state(state, team_id):
@@ -342,15 +359,32 @@ class BossRaidBridge:
                     "kind": str(kind or "chat")[:20],
                 }
             )
-            del messages[:-8]
+            del messages[:-30]
             self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
         self.broadcast()
+
+    def set_irc_client(self, irc_client):
+        with self.lock:
+            self.irc_client = irc_client
+
+    def request_mp_setup(self, setup):
+        irc_client = None
+        with self.lock:
+            irc_client = self.irc_client
+
+        if irc_client is None:
+            self.add_chat_message("Bridge", "MP command bot is unavailable. Check API.Json and IRC connection.", "system")
+            print("[MP BOT] Cannot send setup: IRC client is not available.", flush=True)
+            return
+
+        irc_client.queue_mp_setup(setup)
 
     def apply_command(self, command):
         if not isinstance(command, dict):
             raise ValueError("command must be a json object")
 
         command_type = command.get("type", "")
+        mp_setup_request = None
         with self.lock:
             if command_type == "reset_event":
                 self.state = self._state_from_setting()
@@ -381,6 +415,7 @@ class BossRaidBridge:
                 if raid_map is not None:
                     self.state["selectedMapId"] = raid_map["id"]
                     self.state["selectedMode"] = raid_map["mode"]
+                    mp_setup_request = self._build_mp_setup_locked()
                 self.state["screen"] = "mapReady"
             elif command_type == "set_current_team":
                 team_id = str(command.get("teamId", ""))
@@ -443,6 +478,8 @@ class BossRaidBridge:
                 maps = command.get("maps")
                 if isinstance(maps, list) and maps:
                     self._load_maps_locked(maps)
+            elif command_type == "send_mp_setup":
+                mp_setup_request = self._build_mp_setup_locked()
             elif command_type == "clear_chat":
                 self.state["chatMessages"] = []
             elif command_type == "add_chat_message":
@@ -458,7 +495,7 @@ class BossRaidBridge:
                         "kind": str(command.get("kind", "system"))[:20],
                     }
                 )
-                del messages[:-8]
+                del messages[:-30]
             else:
                 raise ValueError(f"unknown command type: {command_type}")
 
@@ -466,10 +503,25 @@ class BossRaidBridge:
             self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
 
         self.broadcast()
+        if mp_setup_request is not None:
+            self.request_mp_setup(mp_setup_request)
         return self.snapshot()
 
     def _normalize_locked(self):
         self._normalize_state(self.state)
+
+    def _build_mp_setup_locked(self):
+        selected_map = self._selected_map()
+        if selected_map is None:
+            return None
+
+        beatmap_id = self._to_int(selected_map.get("beatmapId", 0), 0)
+        return {
+            "mapId": selected_map.get("id", ""),
+            "beatmapId": beatmap_id,
+            "mode": selected_map.get("mode", self.state.get("selectedMode", "")),
+            "title": selected_map.get("title", ""),
+        }
 
     def _assign_burgers_locked(self):
         maps = self.state["mapPool"]
@@ -634,6 +686,11 @@ def load_api_config():
     channel = str(config.get("mpChannel", "")).strip()
     server = str(config.get("ircServer", "irc.ppy.sh")).strip() or "irc.ppy.sh"
     port = BossRaidBridge._to_int(config.get("ircPort", 6667), 6667)
+    debug_raw_irc = bool(config.get("debugRawIrc", False))
+    command_bot_enabled = bool(config.get("commandBotEnabled", True))
+    timer_seconds = max(5, BossRaidBridge._to_int(config.get("mpTimerSeconds", 90), 90))
+    start_delay_seconds = max(1, BossRaidBridge._to_int(config.get("mpStartDelaySeconds", 5), 5))
+    ready_reminder_message = str(config.get("readyReminderMessage", "모두 준비를 눌러주세요.")).strip() or "모두 준비를 눌러주세요."
 
     if not enabled:
         print("[API] IRC chat disabled. Set enabled=true in API.Json to connect.", flush=True)
@@ -646,13 +703,19 @@ def load_api_config():
     if not channel.startswith("#"):
         channel = "#" + channel
 
-    print(f"[API] IRC chat enabled. Server={server}:{port}, user={username.replace(' ', '_')}, channel={channel}", flush=True)
+    print(f"[API] IRC chat enabled. Server={server}:{port}, user={username.replace(' ', '_')}, channel={channel}, rawLog={debug_raw_irc}", flush=True)
+    print(f"[API] MP command bot: {'enabled' if command_bot_enabled else 'disabled'}, timer={timer_seconds}s, start={start_delay_seconds}s", flush=True)
     return {
         "server": server,
         "port": port,
         "username": username.replace(" ", "_"),
         "password": password,
         "channel": channel,
+        "debugRawIrc": debug_raw_irc,
+        "commandBotEnabled": command_bot_enabled,
+        "mpTimerSeconds": timer_seconds,
+        "mpStartDelaySeconds": start_delay_seconds,
+        "readyReminderMessage": ready_reminder_message[:120],
     }
 
 
@@ -664,6 +727,14 @@ class BanchoIrcChatClient:
         self.thread = None
         self.sock = None
         self.connected = False
+        self.send_lock = threading.Lock()
+        self.bot_lock = threading.RLock()
+        self.bot_generation = 0
+        self.bot_waiting_for_ready = False
+        self.bot_timer_deadline = 0
+        self.bot_timer_prompted = False
+        self.bot_start_sent = False
+        self.bot_last_setup_key = ""
 
     def start(self):
         if self.thread is not None:
@@ -686,17 +757,20 @@ class BanchoIrcChatClient:
             self.thread.join(timeout=2.0)
 
     def _run(self):
-        reconnect_delay = 5
+        base_reconnect_delay = 15
+        max_reconnect_delay = 180
+        reconnect_delay = base_reconnect_delay
         while not self.stop_event.is_set():
             try:
                 self._connect_and_read()
             except Exception as exc:
                 if self.stop_event.is_set():
                     break
-                status = f"IRC RETRYING: {type(exc).__name__}"
+                status = f"IRC RETRYING IN {reconnect_delay}s: {type(exc).__name__}"
                 print(f"[IRC] {status}: {exc}", flush=True)
                 self.bridge.set_chat_status(status)
                 self.stop_event.wait(reconnect_delay)
+                reconnect_delay = base_reconnect_delay if self.connected else min(max_reconnect_delay, reconnect_delay * 2)
 
     def _connect_and_read(self):
         server = self.config["server"]
@@ -741,7 +815,7 @@ class BanchoIrcChatClient:
                         self._send_raw("PONG " + line[5:])
                         continue
 
-                    print(f"[IRC] {line}", flush=True)
+                    self._log_incoming(line)
 
                     parts = line.split(" ")
                     if len(parts) >= 2 and parts[1] == "001" and not joined:
@@ -769,7 +843,196 @@ class BanchoIrcChatClient:
                         sender, target, message = parsed
                         if target.lower() == channel.lower():
                             self._mark_connected("PRIVMSG")
-                            self.bridge.add_chat_message(sender.replace("_", " "), message, "chat")
+                            message_kind = "bancho" if sender == "BanchoBot" else "chat"
+                            self.bridge.add_chat_message(sender.replace("_", " "), message, message_kind)
+                            self._handle_mp_bot_message(sender, message)
+
+    def queue_mp_setup(self, setup):
+        if not self.config.get("commandBotEnabled", True):
+            print("[MP BOT] Command bot disabled in API.Json.", flush=True)
+            self.bridge.add_chat_message("Bridge", "MP command bot is disabled.", "system")
+            return
+
+        if not isinstance(setup, dict):
+            return
+
+        beatmap_id = BossRaidBridge._to_int(setup.get("beatmapId", 0), 0)
+        mode = self._normalize_mp_mode(setup.get("mode", ""))
+        map_id = str(setup.get("mapId", ""))
+        title = str(setup.get("title", "selected map"))
+        if beatmap_id <= 0:
+            message = f"Cannot send !mp setup for {map_id or title}: beatmapId is missing."
+            print(f"[MP BOT] {message}", flush=True)
+            self.bridge.add_chat_message("Bridge", message, "system")
+            return
+
+        setup_key = f"{map_id}:{beatmap_id}:{mode}"
+        with self.bot_lock:
+            if setup_key == self.bot_last_setup_key and self.bot_waiting_for_ready and not self.bot_start_sent:
+                print(f"[MP BOT] Setup already active for {setup_key}; skipping duplicate.", flush=True)
+                return
+
+            self.bot_generation += 1
+            generation = self.bot_generation
+            self.bot_last_setup_key = setup_key
+            self.bot_waiting_for_ready = False
+            self.bot_timer_deadline = 0
+            self.bot_timer_prompted = False
+            self.bot_start_sent = False
+
+        threading.Thread(
+            target=self._run_mp_setup_sequence,
+            args=(generation, beatmap_id, mode, title),
+            name="MpCommandSetup",
+            daemon=True,
+        ).start()
+
+    def _run_mp_setup_sequence(self, generation, beatmap_id, mode, title):
+        if not self._wait_for_connected(timeout_seconds=30):
+            print("[MP BOT] Cannot send setup: IRC room chat is not connected.", flush=True)
+            self.bridge.add_chat_message("Bridge", "MP setup skipped: IRC room chat is not connected.", "system")
+            return
+
+        if not self._is_current_bot_generation(generation):
+            return
+
+        timer_seconds = int(self.config.get("mpTimerSeconds", 90))
+        mods = self._build_mp_mods(mode)
+        print(f"[MP BOT] Sending setup for {title}: beatmap={beatmap_id}, mods={mods}, timer={timer_seconds}", flush=True)
+        self.bridge.add_chat_message("Bridge", f"MP setup: {title} / {mods} / timer {timer_seconds}s", "system")
+
+        if not self.send_channel_message(f"!mp map {beatmap_id}"):
+            return
+        if not self._sleep_bot(generation, 1.0):
+            return
+        if not self.send_channel_message(f"!mp mods {mods}"):
+            return
+        if not self._sleep_bot(generation, 1.0):
+            return
+        if not self.send_channel_message(f"!mp timer {timer_seconds}"):
+            return
+
+        with self.bot_lock:
+            if generation != self.bot_generation:
+                return
+            self.bot_waiting_for_ready = True
+            self.bot_timer_deadline = time.monotonic() + timer_seconds
+            self.bot_timer_prompted = False
+            self.bot_start_sent = False
+
+        threading.Thread(target=self._monitor_mp_ready_timer, args=(generation,), name="MpReadyTimer", daemon=True).start()
+
+    def _monitor_mp_ready_timer(self, generation):
+        while not self.stop_event.is_set():
+            with self.bot_lock:
+                if generation != self.bot_generation or not self.bot_waiting_for_ready or self.bot_start_sent:
+                    return
+                remaining = self.bot_timer_deadline - time.monotonic()
+                if remaining <= 0:
+                    self.bot_timer_prompted = True
+                    reminder = self.config.get("readyReminderMessage", "모두 준비를 눌러주세요.")
+                    print(f"[MP BOT] Ready timer expired. Sending reminder: {reminder}", flush=True)
+                    break
+
+            self.stop_event.wait(min(1.0, max(0.1, remaining)))
+        else:
+            return
+
+        with self.bot_lock:
+            should_send = (
+                generation == self.bot_generation
+                and self.bot_waiting_for_ready
+                and not self.bot_start_sent
+                and self.bot_timer_prompted
+            )
+
+        if should_send:
+            self.send_channel_message(reminder)
+
+    def _handle_mp_bot_message(self, sender, message):
+        if sender != "BanchoBot" or not self.config.get("commandBotEnabled", True):
+            return
+
+        normalized = str(message or "").strip().lower()
+        if not self._is_all_ready_message(normalized):
+            return
+
+        with self.bot_lock:
+            if not self.bot_waiting_for_ready or self.bot_start_sent:
+                return
+
+            generation = self.bot_generation
+            abort_timer = time.monotonic() < self.bot_timer_deadline and not self.bot_timer_prompted
+            self.bot_start_sent = True
+            self.bot_waiting_for_ready = False
+
+        threading.Thread(target=self._start_match_after_ready, args=(generation, abort_timer), name="MpStartReady", daemon=True).start()
+
+    def _start_match_after_ready(self, generation, abort_timer):
+        if not self._is_current_bot_generation(generation):
+            return
+
+        if abort_timer:
+            print("[MP BOT] All players ready. Aborting timer before start.", flush=True)
+            if not self.send_channel_message("!mp aborttimer"):
+                return
+            if not self._sleep_bot(generation, 1.0):
+                return
+        else:
+            print("[MP BOT] All players ready after timer. Starting match.", flush=True)
+
+        start_delay = int(self.config.get("mpStartDelaySeconds", 5))
+        if self.send_channel_message(f"!mp start {start_delay}"):
+            self.bridge.add_chat_message("Bridge", f"All players ready. Sent !mp start {start_delay}.", "system")
+
+    def send_channel_message(self, message):
+        if not self.connected:
+            print(f"[MP BOT] Cannot send before IRC room chat is connected: {message}", flush=True)
+            return False
+
+        self._send_raw(f"PRIVMSG {self.config['channel']} :{message}")
+        print(f"[MP BOT SEND] {message}", flush=True)
+        return True
+
+    def _wait_for_connected(self, timeout_seconds):
+        deadline = time.monotonic() + timeout_seconds
+        while not self.stop_event.is_set() and time.monotonic() < deadline:
+            if self.connected:
+                return True
+            self.stop_event.wait(0.2)
+        return self.connected
+
+    def _sleep_bot(self, generation, seconds):
+        deadline = time.monotonic() + seconds
+        while not self.stop_event.is_set() and time.monotonic() < deadline:
+            if not self._is_current_bot_generation(generation):
+                return False
+            self.stop_event.wait(min(0.1, deadline - time.monotonic()))
+        return self._is_current_bot_generation(generation)
+
+    def _is_current_bot_generation(self, generation):
+        with self.bot_lock:
+            return generation == self.bot_generation
+
+    @staticmethod
+    def _normalize_mp_mode(mode):
+        mode = str(mode or "").strip().upper()
+        return mode or "NM"
+
+    @staticmethod
+    def _build_mp_mods(mode):
+        mode = BanchoIrcChatClient._normalize_mp_mode(mode)
+        if mode == "NM":
+            return "NF"
+        return f"NF {mode}"
+
+    @staticmethod
+    def _is_all_ready_message(message):
+        return (
+            "all players are ready" in message
+            or "everyone is ready" in message
+            or "all players ready" in message
+        )
 
     def _mark_connected(self, source):
         if self.connected:
@@ -795,11 +1058,48 @@ class BanchoIrcChatClient:
         self.bridge.set_chat_status(status[:80])
         self.bridge.add_chat_message("Bridge", status, "system")
 
+    def _log_incoming(self, line):
+        if self.config.get("debugRawIrc"):
+            print(f"[IRC RAW] {line}", flush=True)
+            return
+
+        channel = self.config["channel"]
+        parsed = self._parse_privmsg(line)
+        if parsed is not None:
+            sender, target, message = parsed
+            if target.lower() == channel.lower():
+                print(f"[IRC CHAT] {sender.replace('_', ' ')}: {message}", flush=True)
+            return
+
+        parts = line.split(" ")
+        if len(parts) < 2:
+            if line.startswith("ERROR"):
+                print(f"[IRC] {line}", flush=True)
+            return
+
+        command = parts[1]
+        if command == "001":
+            print(f"[IRC] Login accepted.", flush=True)
+            return
+
+        if command == "366" and len(parts) >= 4 and parts[3].lower() == channel.lower():
+            print(f"[IRC] Joined channel list completed for {channel}", flush=True)
+            return
+
+        if command == "JOIN" and self._nick_from_prefix(parts[0]) == self.config["username"]:
+            print(f"[IRC] Joined room chat {channel}", flush=True)
+            return
+
+        if command in ("403", "464", "465", "473", "475") or command.startswith("4") or command.startswith("5"):
+            print(f"[IRC] {line}", flush=True)
+
     def _send_raw(self, line):
         if self.sock is None:
             return
-        print(f"[IRC SEND] {self._redact(line)}", flush=True)
-        self.sock.sendall((line + "\r\n").encode("utf-8"))
+        with self.send_lock:
+            if self.config.get("debugRawIrc") or not line.startswith("PONG "):
+                print(f"[IRC SEND] {self._redact(line)}", flush=True)
+            self.sock.sendall((line + "\r\n").encode("utf-8"))
 
     @staticmethod
     def _redact(line):
@@ -1096,6 +1396,7 @@ INDEX_HTML = r"""<!doctype html>
         <button class="gold" onclick="cmd('enter_difficulty_select')">Difficulty Select</button>
         <button class="gold" onclick="confirmDifficulty()">Confirm Difficulty</button>
         <button onclick="cmd('ready_map')">Map Ready</button>
+        <button class="primary" onclick="cmd('send_mp_setup')">Send !mp Setup</button>
         <button class="success" onclick="cmd('start_map')">Start Map</button>
         <button class="danger" onclick="cmd('finish_map')">Finish</button>
         <button onclick="cmd('next_round')">Next Round</button>
@@ -1229,7 +1530,8 @@ INDEX_HTML = r"""<!doctype html>
         ['Boss HP', num(state.bossHp)],
         ['Total Score', num(state.totalScore)],
         ['Chat', state.chatStatus || '-'],
-        ['Selected Map', selected ? selected.title : '-']
+        ['Selected Map', selected ? selected.title : '-'],
+        ['Beatmap ID', selected && selected.beatmapId ? selected.beatmapId : '-']
       ];
       document.getElementById('stats').innerHTML = stats.map(([label, value]) => `<div class="stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('');
     }
@@ -1257,6 +1559,7 @@ INDEX_HTML = r"""<!doctype html>
           <div class="${classes.join(' ')}">
             <strong>${esc(map.title)}</strong>
             <small>${esc(map.mode)} / ${esc(map.difficultyName)} / ${round}</small>
+            <small>beatmapId: ${esc(map.beatmapId || '-')}</small>
             ${map.link ? `<small><a href="${esc(map.link)}" target="_blank" rel="noreferrer">map link</a></small>` : ''}
             <small>${map.isBurger ? 'BURGER' : ''} ${map.played ? 'PLAYED' : ''}</small>
           </div>
@@ -1286,6 +1589,7 @@ def run_server(host=HOST, port=PORT):
     api_config = load_api_config()
     if api_config is not None:
         irc_client = BanchoIrcChatClient(BRIDGE, api_config)
+        BRIDGE.set_irc_client(irc_client)
         irc_client.start()
 
     print("========================================", flush=True)
@@ -1304,6 +1608,7 @@ def run_server(host=HOST, port=PORT):
     finally:
         if irc_client is not None:
             irc_client.stop()
+        BRIDGE.set_irc_client(None)
         server.server_close()
 
 
@@ -1332,6 +1637,14 @@ def self_test():
     assert bridge.snapshot()["chatMessages"][-1]["message"] == "hello"
     bridge.apply_command({"type": "clear_chat"})
     assert bridge.snapshot()["chatMessages"] == []
+    assert bridge._extract_beatmap_id({"beatmapId": "123456"}) == 123456
+    assert bridge._extract_beatmap_id({"link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"}) == 3427307
+    assert bridge._extract_beatmap_id({"link": "https://osu.ppy.sh/b/7654321"}) == 7654321
+    assert BanchoIrcChatClient._build_mp_mods("NM") == "NF"
+    assert BanchoIrcChatClient._build_mp_mods("HD") == "NF HD"
+    assert BanchoIrcChatClient._build_mp_mods("HR") == "NF HR"
+    assert BanchoIrcChatClient._build_mp_mods("DT") == "NF DT"
+    assert BanchoIrcChatClient._is_all_ready_message("all players are ready")
     irc = BanchoIrcChatClient(bridge, {"server": "irc.ppy.sh", "port": 6667, "username": "Tester", "password": "secret", "channel": "#mp_1"})
     irc._mark_connected("TEST")
     assert bridge.snapshot()["chatStatus"] == "IRC CONNECTED #mp_1"

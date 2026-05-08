@@ -101,6 +101,7 @@ namespace BossRaid
         public string mapper;
         public string difficultyName;
         public string link;
+        public int beatmapId;
         public bool isBurger;
         public bool played;
     }

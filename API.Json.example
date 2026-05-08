@@ -4,5 +4,10 @@
   "ircPort": 6667,
   "ircUsername": "your_osu_username",
   "ircPassword": "your_irc_password",
-  "mpChannel": "#mp_123456"
+  "mpChannel": "#mp_123456",
+  "commandBotEnabled": true,
+  "mpTimerSeconds": 90,
+  "mpStartDelaySeconds": 5,
+  "readyReminderMessage": "모두 준비를 눌러주세요.",
+  "debugRawIrc": false
 }
