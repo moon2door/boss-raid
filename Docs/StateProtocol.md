@@ -32,7 +32,15 @@ Unity receives one complete JSON state object per WebSocket message.
       "kind": "chat"
     }
   ],
-  "teams": [],
+  "teams": [
+    {
+      "id": "team-1",
+      "name": "Team A",
+      "color": { "r": 0.95, "g": 0.25, "b": 0.20, "a": 1.0 },
+      "score": 0,
+      "players": ["player1", "player2", "player3"]
+    }
+  ],
   "mapPool": [
     {
       "id": "NM1",
@@ -124,3 +132,23 @@ On `finish_map`:
 - Persistent team/map setup is edited in `Setting.Json`.
 - `Bridge/map_pool.example.json` shows the expected map object fields.
 - The bridge keeps data in memory until the Python process exits.
+
+## Team Players
+
+Each team in `teams` may include a `players` array. The bridge populates it from
+`Setting.Json` when present and forwards it to Unity.
+
+```json
+{
+  "id": "team-1",
+  "name": "Team A",
+  "color": { "r": 0.95, "g": 0.25, "b": 0.20, "a": 1.0 },
+  "score": 0,
+  "players": ["Yiriru", "moon2door", "AXDVGN"]
+}
+```
+
+The In Game screen renders 3 player tiles bound to the *current team*'s roster
+(via the `CurrentTeamPlayer` binding source, indices 0–2). Per-player live
+scores are not tracked yet — tiles show a `-- TOSU --` placeholder and will be
+wired up once a tosu live-score feed is connected.

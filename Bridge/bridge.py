@@ -547,24 +547,28 @@ class BossRaidBridge:
 
     def _spin_mode_locked(self):
         candidates = self._eligible_maps_locked(require_mode=False)
-        if not candidates:
-            candidates = self.state["mapPool"]
         modes = sorted({raid_map["mode"] for raid_map in candidates})
         if modes:
             self.state["selectedMode"] = random.choice(modes)
             self.state["selectedMapId"] = ""
+            self.state["resultMessage"] = ""
+        else:
+            self.state["selectedMode"] = ""
+            self.state["selectedMapId"] = ""
+            self.state["resultMessage"] = "No unplayed maps remain."
 
     def _spin_map_locked(self):
-        selected_mode = self.state.get("selectedMode", "")
         candidates = self._eligible_maps_locked(require_mode=True)
         if not candidates:
-            candidates = [m for m in self.state["mapPool"] if m.get("mode") == selected_mode]
-        if not candidates:
-            candidates = self.state["mapPool"]
+            candidates = self._eligible_maps_locked(require_mode=False)
         if candidates:
             raid_map = random.choice(candidates)
             self.state["selectedMode"] = raid_map["mode"]
             self.state["selectedMapId"] = raid_map["id"]
+            self.state["resultMessage"] = ""
+        else:
+            self.state["selectedMapId"] = ""
+            self.state["resultMessage"] = "No unplayed maps remain."
 
     def _eligible_maps_locked(self, require_mode):
         round_ids = set(self.state.get("selectedRoundMapIds", []))
@@ -1633,6 +1637,18 @@ def self_test():
     bridge.apply_command({"type": "set_difficulty", "difficulty": "easy"})
     bridge.apply_command({"type": "finish_map"})
     assert bridge.snapshot()["lastResult"] == "clear"
+    played_id = bridge.snapshot()["selectedMapId"]
+    played_mode = bridge.snapshot()["selectedMode"]
+    with bridge.lock:
+        bridge.state["selectedMode"] = played_mode
+        for raid_map in bridge.state["mapPool"]:
+            if raid_map.get("mode") == played_mode:
+                raid_map["played"] = raid_map.get("id") == played_id
+        bridge.state["selectedRoundMapIds"] = [
+            raid_map["id"] for raid_map in bridge.state["mapPool"] if raid_map.get("mode") == played_mode
+        ]
+    bridge.apply_command({"type": "spin_map"})
+    assert bridge.snapshot()["selectedMapId"] != played_id
     bridge.apply_command({"type": "add_chat_message", "sender": "Tester", "message": "hello"})
     assert bridge.snapshot()["chatMessages"][-1]["message"] == "hello"
     bridge.apply_command({"type": "clear_chat"})

@@ -1,0 +1,1687 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Boss Raid Overlay - Design Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Rajdhani:wght@500;600;700&family=Bebas+Neue&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-base: #08050a;
+    --bg-deep: #0e0709;
+    --bg-mid: #1a0d0a;
+    --bg-card: #221310;
+    --bg-panel: #2a1a13;
+    --panel-edge: #5a3624;
+    --panel-edge-soft: #3a2218;
+
+    --gold: #d4a14a;
+    --gold-bright: #f6cf7e;
+    --gold-deep: #8a6428;
+    --gold-glow: rgba(244, 201, 122, 0.35);
+
+    --blood: #b6201d;
+    --blood-bright: #e84030;
+    --blood-deep: #5e1310;
+
+    --bone: #efe2c7;
+    --text-main: #f4ecd8;
+    --text-muted: #a89880;
+    --text-faint: #6e5f4a;
+
+    --green: #6db84a;
+    --green-bright: #a3e36f;
+    --red: #d63232;
+    --cyan: #5dc4e0;
+
+    --team1: #f24033;
+    --team2: #338cf2;
+    --team3: #40d96f;
+    --team4: #f2bf33;
+
+    --easy: #6db84a;
+    --normal: #d4a14a;
+    --hard: #d63232;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #050303;
+    color: var(--text-main);
+    font-family: 'Rajdhani', 'Noto Sans KR', sans-serif;
+  }
+
+  nav.jumper {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, #000 0%, #0e0a06 100%);
+    padding: 10px 16px; z-index: 100;
+    border-bottom: 2px solid var(--gold-deep);
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  }
+  nav.jumper .brand {
+    color: var(--gold-bright); font-family: 'Cinzel', serif;
+    font-weight: 900; letter-spacing: 4px; padding: 4px 14px;
+    border-right: 1px solid var(--gold-deep); margin-right: 6px;
+    font-size: 14px;
+  }
+  nav.jumper a {
+    color: var(--text-muted); text-decoration: none;
+    padding: 5px 11px; border: 1px solid var(--panel-edge-soft); border-radius: 3px;
+    font-size: 12px; letter-spacing: 1px; font-weight: 700;
+    text-transform: uppercase;
+  }
+  nav.jumper a:hover { color: var(--gold-bright); border-color: var(--gold); }
+  nav.jumper .spacer { flex: 1; }
+  nav.jumper .note { color: var(--text-faint); font-size: 11px; }
+
+  .screens { padding: 80px 0 80px; }
+
+  .screen-wrap {
+    width: min(1920px, 96vw);
+    aspect-ratio: 16 / 9;
+    margin: 32px auto 80px;
+    position: relative;
+    box-shadow: 0 0 0 3px var(--gold-deep), 0 20px 60px rgba(0,0,0,.85);
+  }
+  .screen-wrap > .label {
+    position: absolute; top: -32px; left: 0;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 13px;
+    color: var(--gold); letter-spacing: 5px; text-transform: uppercase;
+  }
+  .screen-wrap > .label::before {
+    content: '◈'; color: var(--gold-bright); margin-right: 10px;
+  }
+
+  .screen {
+    width: 1920px; height: 1080px;
+    position: absolute; top: 0; left: 0;
+    transform-origin: top left;
+    transform: scale(calc(min(1920px, 96vw) / 1920));
+    background:
+      radial-gradient(ellipse at top, rgba(214, 50, 50, 0.04) 0%, transparent 55%),
+      radial-gradient(ellipse at bottom, rgba(212, 161, 74, 0.05) 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg-base) 0%, var(--bg-deep) 100%);
+    overflow: hidden;
+    color: var(--text-main);
+  }
+
+  /* Decorative atmospheric layers for the screen */
+  .screen::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(0deg,
+        rgba(255, 255, 255, 0.018) 0px,
+        rgba(255, 255, 255, 0.018) 1px,
+        transparent 1px, transparent 3px);
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+  .screen::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 1400px 600px at 50% 110%, rgba(182, 32, 29, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* Common ornate panel */
+  .panel {
+    background:
+      linear-gradient(180deg, rgba(60, 36, 24, 0.55) 0%, rgba(34, 19, 16, 0.92) 100%);
+    border: 2px solid var(--panel-edge);
+    position: relative;
+  }
+  .panel.gilded { border-color: var(--gold-deep); }
+  .panel.gilded::before, .panel.gilded::after,
+  .panel.gilded > .cor-tr, .panel.gilded > .cor-bl {
+    content: ''; position: absolute; width: 22px; height: 22px;
+    border: 3px solid var(--gold);
+    pointer-events: none;
+  }
+  .panel.gilded::before { top: -3px; left: -3px; border-right: 0; border-bottom: 0; }
+  .panel.gilded::after { bottom: -3px; right: -3px; border-left: 0; border-top: 0; }
+  .panel.gilded > .cor-tr { top: -3px; right: -3px; border-left: 0; border-bottom: 0; }
+  .panel.gilded > .cor-bl { bottom: -3px; left: -3px; border-right: 0; border-top: 0; }
+
+  .ribbon {
+    display: inline-block;
+    padding: 6px 28px;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 100%);
+    color: #1a0a05;
+    font-family: 'Cinzel', serif; font-weight: 900;
+    letter-spacing: 6px;
+    clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+    text-shadow: 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  /* ===================== HUD HEADER (top bar) ===================== */
+  .hud {
+    position: absolute; top: 24px; left: 24px; right: 24px;
+    height: 132px;
+    display: grid;
+    grid-template-columns: 580px 1fr 620px;
+    gap: 18px;
+  }
+  .hud .left, .hud .center, .hud .right { padding: 16px 22px; }
+  .hud .left .event {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 38px; letter-spacing: 10px; color: var(--gold-bright);
+    text-shadow: 0 2px 0 #2a1a08, 0 0 24px var(--gold-glow);
+    line-height: 1;
+  }
+  .hud .left .team {
+    margin-top: 14px; display: flex; align-items: center; gap: 14px;
+  }
+  .hud .left .team .badge {
+    width: 14px; height: 32px; background: var(--team1);
+    box-shadow: 0 0 20px var(--team1);
+  }
+  .hud .left .team .name {
+    font-size: 28px; font-weight: 700; letter-spacing: 2px;
+    color: var(--team1); font-family: 'Noto Sans KR', sans-serif;
+  }
+  .hud .left .team .role {
+    font-size: 14px; letter-spacing: 4px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase; margin-top: 4px;
+  }
+
+  .hud .center {
+    text-align: center;
+    background:
+      linear-gradient(180deg, rgba(40, 24, 16, 0.92) 0%, rgba(20, 10, 8, 0.95) 100%);
+    border: 2px solid var(--gold-deep);
+    border-top-width: 3px;
+  }
+  .hud .center .eyebrow {
+    font-size: 14px; letter-spacing: 7px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .hud .center .screen-label {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 38px; letter-spacing: 8px; color: var(--gold-bright);
+    text-shadow: 0 0 24px var(--gold-glow); line-height: 1; margin: 6px 0 8px;
+  }
+  .hud .center .map-title {
+    font-size: 18px; color: var(--text-muted); letter-spacing: 2px;
+    font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .hud .center .map-title strong { color: var(--bone); margin-left: 8px; }
+
+  .hud .right { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 8px 12px; }
+  .hud .stat {
+    background: linear-gradient(180deg, rgba(42, 26, 19, 0.96) 0%, rgba(20, 10, 8, 0.96) 100%);
+    border: 1.5px solid var(--panel-edge);
+    padding: 10px 12px;
+    text-align: center;
+    position: relative;
+  }
+  .hud .stat .lbl {
+    font-size: 12px; letter-spacing: 3px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .hud .stat .val {
+    font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1;
+    color: var(--gold-bright); margin-top: 6px; letter-spacing: 1px;
+  }
+  .hud .stat.cyan .val { color: var(--cyan); }
+  .hud .stat.green .val { color: var(--green-bright); }
+  .hud .stat.red .val { color: var(--blood-bright); }
+
+  .hud .conn {
+    position: absolute; right: 0; bottom: -32px;
+    font-size: 13px; letter-spacing: 4px; color: var(--green);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .hud .conn::before { content: '●'; color: var(--green); margin-right: 6px; animation: pulse 1.6s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  /* ===================== STANDBY ===================== */
+  .standby {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .standby .crest {
+    font-size: 96px; color: var(--gold); margin-bottom: 16px;
+    text-shadow: 0 0 40px var(--gold-glow);
+  }
+  .standby .title {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 220px; letter-spacing: 28px; color: var(--gold-bright);
+    text-shadow:
+      0 0 20px var(--gold-glow),
+      0 8px 0 #1a0a05,
+      0 0 80px rgba(214, 50, 50, 0.25);
+    line-height: 1; margin: 0;
+    background: linear-gradient(180deg, #fce5a3 0%, #d4a14a 60%, #8a6428 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .standby .title-shadow {
+    position: absolute;
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 220px; letter-spacing: 28px; color: transparent;
+    text-shadow: 0 0 60px rgba(182, 32, 29, 0.4);
+    line-height: 1;
+  }
+  .standby .subtitle {
+    font-family: 'Noto Sans KR', sans-serif; font-weight: 500;
+    font-size: 32px; letter-spacing: 8px; color: var(--text-muted);
+    margin-top: 24px; text-transform: uppercase;
+  }
+  .standby .divider {
+    margin: 40px auto;
+    width: 720px; height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--gold-deep) 30%, var(--gold) 50%, var(--gold-deep) 70%, transparent 100%);
+    position: relative;
+  }
+  .standby .divider::before {
+    content: '◆ ◇ ◆';
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    background: var(--bg-base); padding: 0 14px;
+    color: var(--gold); letter-spacing: 8px; font-size: 18px;
+  }
+  .standby .teams {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 24px; width: 1640px; margin-top: 20px;
+  }
+  .standby .team-card {
+    height: 180px; padding: 22px 24px;
+    background:
+      linear-gradient(180deg, rgba(60, 36, 24, 0.6) 0%, rgba(28, 16, 12, 0.95) 100%);
+    border: 2px solid var(--panel-edge);
+    position: relative;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .standby .team-card.active {
+    border-color: var(--team1); border-width: 3px;
+    box-shadow: 0 0 24px rgba(242, 64, 51, 0.35), inset 0 0 60px rgba(242, 64, 51, 0.08);
+  }
+  .standby .team-card .topbar {
+    height: 6px; width: 60%;
+    background: var(--panel-edge);
+    margin-bottom: 8px;
+  }
+  .standby .team-card.t1 .topbar { background: var(--team1); }
+  .standby .team-card.t2 .topbar { background: var(--team2); }
+  .standby .team-card.t3 .topbar { background: var(--team3); }
+  .standby .team-card.t4 .topbar { background: var(--team4); }
+  .standby .team-card .label {
+    font-size: 13px; letter-spacing: 4px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .standby .team-card .name {
+    font-family: 'Noto Sans KR'; font-weight: 900; font-size: 36px;
+    color: var(--text-main); letter-spacing: 1px;
+    margin-top: 4px;
+  }
+  .standby .team-card.t1 .name { color: var(--team1); }
+  .standby .team-card.t2 .name { color: var(--team2); }
+  .standby .team-card.t3 .name { color: var(--team3); }
+  .standby .team-card.t4 .name { color: var(--team4); }
+  .standby .team-card .roster {
+    font-size: 14px; color: var(--text-muted); letter-spacing: 1px;
+    line-height: 1.4;
+  }
+  .standby .team-card .empty {
+    font-size: 14px; color: var(--text-faint); letter-spacing: 4px;
+    font-style: italic;
+  }
+  .standby .footer {
+    position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+    font-size: 18px; letter-spacing: 6px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .standby .footer::before { content: '— '; color: var(--gold-deep); }
+  .standby .footer::after { content: ' —'; color: var(--gold-deep); }
+
+  /* ===================== BURGER REVEAL ===================== */
+  .burger-screen .title-bar {
+    position: absolute; top: 60px; left: 0; right: 0; text-align: center;
+  }
+  .burger-screen .title-bar .ribbon { font-size: 32px; padding: 12px 60px; }
+  .burger-screen .title-bar .sub {
+    margin-top: 18px;
+    font-size: 22px; letter-spacing: 8px; color: var(--text-muted);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .burger-screen .grid-wrap {
+    position: absolute; top: 250px; left: 60px; right: 60px; bottom: 130px;
+    display: grid; grid-template-rows: repeat(4, 1fr); gap: 22px;
+  }
+  .burger-screen .row {
+    display: grid; grid-template-columns: 80px repeat(6, 1fr); gap: 16px;
+    align-items: stretch;
+  }
+  .burger-screen .row .mode-tag {
+    background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-deep) 100%);
+    border: 2px solid var(--gold-deep);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cinzel', serif; font-weight: 900; font-size: 36px;
+    letter-spacing: 4px; color: var(--gold-bright);
+  }
+  .burger-screen .map-cell {
+    background:
+      linear-gradient(180deg, rgba(48, 28, 20, 0.92) 0%, rgba(22, 12, 10, 0.96) 100%);
+    border: 2px solid var(--panel-edge);
+    padding: 18px 20px;
+    position: relative;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .burger-screen .map-cell .id {
+    font-family: 'Bebas Neue'; font-size: 22px; letter-spacing: 2px;
+    color: var(--cyan); line-height: 1;
+  }
+  .burger-screen .map-cell .ttl {
+    font-family: 'Noto Sans KR'; font-weight: 700; font-size: 22px;
+    color: var(--text-main); letter-spacing: 0.5px; line-height: 1.1;
+    margin-top: 4px;
+  }
+  .burger-screen .map-cell .meta {
+    font-size: 14px; color: var(--text-faint); letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .burger-screen .map-cell.burger {
+    background:
+      linear-gradient(180deg, rgba(122, 76, 32, 0.55) 0%, rgba(44, 24, 12, 0.95) 100%);
+    border-color: var(--gold);
+    box-shadow:
+      0 0 28px rgba(244, 201, 122, 0.35),
+      inset 0 0 30px rgba(244, 201, 122, 0.18);
+  }
+  .burger-screen .map-cell.burger .id { color: var(--gold-bright); }
+  .burger-screen .map-cell.burger::after {
+    content: '🍔'; position: absolute; top: 8px; right: 10px; font-size: 32px;
+    filter: drop-shadow(0 0 6px rgba(244, 201, 122, 0.6));
+  }
+  .burger-screen .map-cell.burger .stamp {
+    position: absolute; bottom: 10px; right: 14px;
+    font-family: 'Cinzel', serif; font-weight: 900; font-size: 13px;
+    color: var(--gold-bright); letter-spacing: 4px;
+    border: 1.5px solid var(--gold);
+    padding: 3px 8px;
+    background: rgba(40, 22, 12, 0.6);
+  }
+  .burger-screen .footer {
+    position: absolute; bottom: 50px; left: 0; right: 0; text-align: center;
+    font-size: 20px; letter-spacing: 6px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .burger-screen .footer kbd {
+    display: inline-block; padding: 4px 14px;
+    background: var(--bg-panel); border: 2px solid var(--gold-deep);
+    color: var(--gold-bright); margin: 0 6px;
+    font-family: 'Cinzel'; font-weight: 700;
+  }
+
+  /* ===================== DIFFICULTY ===================== */
+  .diff-screen .title-area {
+    position: absolute; top: 80px; left: 0; right: 0; text-align: center;
+  }
+  .diff-screen .title-area .eye {
+    font-size: 18px; letter-spacing: 12px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .diff-screen .title-area .ttl {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 96px; letter-spacing: 18px; color: var(--gold-bright);
+    text-shadow: 0 0 40px var(--gold-glow), 0 6px 0 #2a1a08;
+    line-height: 1; margin: 12px 0 18px;
+    background: linear-gradient(180deg, #fce5a3 0%, #d4a14a 60%, #8a6428 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .diff-screen .title-area .desc {
+    font-size: 26px; letter-spacing: 4px; color: var(--text-muted);
+    font-weight: 600; font-family: 'Noto Sans KR';
+  }
+  .diff-screen .cards {
+    position: absolute; top: 350px; left: 80px; right: 80px;
+    height: 540px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px;
+  }
+  .diff-card {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(40, 24, 18, 0.92) 0%, rgba(18, 10, 8, 0.96) 100%);
+    border: 2px solid var(--panel-edge);
+    padding: 50px 32px 36px;
+    display: flex; flex-direction: column; align-items: center;
+    transition: transform 0.2s;
+  }
+  .diff-card .badge {
+    position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+    padding: 8px 24px;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px;
+    letter-spacing: 6px; color: #1a0a05;
+    background: var(--gold);
+    clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
+  }
+  .diff-card.easy .badge { background: var(--easy); }
+  .diff-card.normal .badge { background: var(--normal); }
+  .diff-card.hard .badge { background: var(--hard); color: #fff; }
+
+  .diff-card .icon {
+    font-size: 96px; line-height: 1; margin-bottom: 12px;
+    filter: drop-shadow(0 0 20px rgba(0,0,0,0.6));
+  }
+  .diff-card.easy .icon { color: var(--easy); text-shadow: 0 0 30px rgba(109, 184, 74, 0.5); }
+  .diff-card.normal .icon { color: var(--normal); text-shadow: 0 0 30px var(--gold-glow); }
+  .diff-card.hard .icon { color: var(--hard); text-shadow: 0 0 30px rgba(214, 50, 50, 0.5); }
+
+  .diff-card .name {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 64px; letter-spacing: 12px; line-height: 1;
+    margin: 8px 0 28px;
+  }
+  .diff-card.easy .name { color: var(--green-bright); }
+  .diff-card.normal .name { color: var(--gold-bright); }
+  .diff-card.hard .name { color: var(--blood-bright); }
+
+  .diff-card .stats {
+    width: 100%;
+    border-top: 1px solid var(--panel-edge);
+    padding-top: 24px;
+    display: grid; gap: 16px;
+  }
+  .diff-card .stat-row {
+    display: grid; grid-template-columns: 90px 1fr;
+    align-items: center;
+  }
+  .diff-card .stat-row .lbl {
+    font-size: 14px; letter-spacing: 4px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .diff-card .stat-row .val {
+    font-family: 'Bebas Neue'; font-size: 56px; line-height: 1;
+    color: var(--text-main); letter-spacing: 2px; text-align: right;
+  }
+  .diff-card.easy .stat-row.hp .val { color: var(--green-bright); }
+  .diff-card.normal .stat-row.hp .val { color: var(--gold-bright); }
+  .diff-card.hard .stat-row.hp .val { color: var(--blood-bright); }
+  .diff-card .stat-row.prize .val { color: var(--gold-bright); }
+
+  .diff-card.selected {
+    transform: translateY(-12px) scale(1.02);
+    border-width: 3px;
+  }
+  .diff-card.easy.selected {
+    border-color: var(--easy);
+    box-shadow: 0 0 60px rgba(109, 184, 74, 0.45), inset 0 0 80px rgba(109, 184, 74, 0.1);
+  }
+  .diff-card.normal.selected {
+    border-color: var(--gold);
+    box-shadow: 0 0 60px var(--gold-glow), inset 0 0 80px rgba(244, 201, 122, 0.12);
+  }
+  .diff-card.hard.selected {
+    border-color: var(--hard);
+    box-shadow: 0 0 60px rgba(214, 50, 50, 0.45), inset 0 0 80px rgba(214, 50, 50, 0.12);
+  }
+  .diff-card .pick-mark {
+    display: none;
+    position: absolute; top: 16px; right: 18px;
+    font-family: 'Cinzel'; font-weight: 700; font-size: 14px;
+    letter-spacing: 4px; color: var(--gold-bright);
+    border: 1.5px solid var(--gold);
+    padding: 4px 10px;
+    background: rgba(40, 22, 12, 0.6);
+  }
+  .diff-card.selected .pick-mark { display: block; }
+
+  .diff-screen .footer {
+    position: absolute; bottom: 50px; left: 0; right: 0; text-align: center;
+    font-size: 20px; letter-spacing: 6px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .diff-screen .footer kbd {
+    display: inline-block; padding: 4px 14px;
+    background: var(--bg-panel); border: 2px solid var(--gold-deep);
+    color: var(--gold-bright); margin: 0 6px;
+    font-family: 'Cinzel'; font-weight: 700;
+  }
+
+  /* ===================== MODE ROULETTE ===================== */
+  .mode-screen .title-area {
+    position: absolute; top: 70px; left: 0; right: 0; text-align: center;
+  }
+  .mode-screen .title-area .eye {
+    font-size: 18px; letter-spacing: 12px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .mode-screen .title-area .ttl {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 96px; letter-spacing: 16px;
+    line-height: 1; margin: 12px 0 18px;
+    background: linear-gradient(180deg, #fce5a3 0%, #d4a14a 60%, #8a6428 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .mode-screen .reel-frame {
+    position: absolute; top: 320px; left: 80px; right: 80px;
+    height: 540px;
+    background:
+      linear-gradient(180deg, rgba(20, 12, 10, 0.4) 0%, rgba(10, 6, 6, 0.95) 100%);
+    border: 3px solid var(--gold-deep);
+    padding: 30px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+  }
+  .mode-screen .reel-frame::before, .mode-screen .reel-frame::after {
+    content: ''; position: absolute;
+    width: 60px; height: 60px;
+    border: 4px solid var(--gold);
+    pointer-events: none;
+  }
+  .mode-screen .reel-frame::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; }
+  .mode-screen .reel-frame::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; }
+
+  .mode-tile {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(40, 24, 18, 0.85) 0%, rgba(20, 10, 8, 0.95) 100%);
+    border: 2px solid var(--panel-edge);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 20px;
+  }
+  .mode-tile .label {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 140px; letter-spacing: 8px; line-height: 1;
+    color: var(--text-main);
+    text-shadow: 0 4px 0 #1a0a05;
+  }
+  .mode-tile .desc {
+    font-size: 18px; letter-spacing: 5px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase; margin-top: 24px;
+  }
+  .mode-tile .count {
+    margin-top: 12px;
+    font-family: 'Bebas Neue'; font-size: 36px;
+    color: var(--gold-bright); letter-spacing: 2px;
+  }
+  .mode-tile.active {
+    border-color: var(--cyan); border-width: 3px;
+    background:
+      linear-gradient(180deg, rgba(15, 60, 80, 0.6) 0%, rgba(8, 26, 36, 0.96) 100%);
+    box-shadow: 0 0 40px rgba(93, 196, 224, 0.5), inset 0 0 80px rgba(93, 196, 224, 0.1);
+    transform: scale(1.04);
+  }
+  .mode-tile.active .label {
+    color: var(--cyan);
+    text-shadow: 0 4px 0 #061c26, 0 0 30px rgba(93, 196, 224, 0.6);
+  }
+  .mode-tile.active::after {
+    content: '◆ NOW SPINNING ◆';
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    background: var(--cyan); color: #061c26;
+    font-family: 'Cinzel'; font-weight: 700; font-size: 13px; letter-spacing: 4px;
+    padding: 4px 14px;
+  }
+
+  .mode-screen .pointer-up, .mode-screen .pointer-down {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 18px solid transparent;
+    border-right: 18px solid transparent;
+  }
+  .mode-screen .pointer-up { top: 295px; border-top: 24px solid var(--gold); }
+  .mode-screen .pointer-down { bottom: 165px; border-bottom: 24px solid var(--gold); }
+
+  .mode-screen .footer {
+    position: absolute; bottom: 60px; left: 0; right: 0; text-align: center;
+    font-size: 20px; letter-spacing: 6px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .mode-screen .footer kbd {
+    display: inline-block; padding: 4px 14px;
+    background: var(--bg-panel); border: 2px solid var(--gold-deep);
+    color: var(--gold-bright); margin: 0 6px;
+    font-family: 'Cinzel'; font-weight: 700;
+  }
+
+  /* ===================== MAP ROULETTE ===================== */
+  .map-screen .title-area {
+    position: absolute; top: 60px; left: 0; right: 0; text-align: center;
+  }
+  .map-screen .title-area .eye {
+    font-size: 16px; letter-spacing: 10px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .map-screen .title-area .ttl {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 80px; letter-spacing: 14px; line-height: 1; margin: 10px 0 6px;
+    background: linear-gradient(180deg, #fce5a3 0%, #d4a14a 60%, #8a6428 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .map-screen .title-area .ttl .mode-token {
+    color: var(--cyan);
+    -webkit-text-fill-color: var(--cyan);
+    background: none;
+  }
+
+  .map-screen .grid {
+    position: absolute; top: 260px; left: 60px; right: 60px; bottom: 130px;
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr);
+    gap: 28px;
+  }
+  .map-cell-2 {
+    background:
+      linear-gradient(180deg, rgba(40, 24, 18, 0.9) 0%, rgba(18, 10, 8, 0.95) 100%);
+    border: 2px solid var(--panel-edge);
+    padding: 28px 32px;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .map-cell-2 .head {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 12px;
+  }
+  .map-cell-2 .id-tag {
+    background: var(--bg-panel); border: 1.5px solid var(--cyan);
+    color: var(--cyan); padding: 4px 12px;
+    font-family: 'Bebas Neue'; font-size: 22px; letter-spacing: 2px;
+  }
+  .map-cell-2 .mode-tag {
+    background: var(--bg-panel); border: 1.5px solid var(--gold-deep);
+    color: var(--gold-bright); padding: 4px 12px;
+    font-family: 'Bebas Neue'; font-size: 22px; letter-spacing: 2px;
+  }
+  .map-cell-2 .ttl {
+    font-family: 'Noto Sans KR'; font-weight: 900; font-size: 36px;
+    color: var(--text-main); letter-spacing: 0.5px; line-height: 1.15;
+    margin-bottom: 6px;
+  }
+  .map-cell-2 .diff {
+    font-size: 22px; color: var(--cyan); letter-spacing: 1px; font-weight: 700;
+  }
+  .map-cell-2 .creator {
+    margin-top: auto;
+    font-size: 18px; color: var(--text-muted); letter-spacing: 1px;
+    border-top: 1px solid var(--panel-edge);
+    padding-top: 14px;
+  }
+  .map-cell-2 .creator span { color: var(--text-faint); margin-right: 8px; letter-spacing: 4px; font-weight: 700; }
+  .map-cell-2.burger { border-color: var(--gold); box-shadow: 0 0 20px rgba(244, 201, 122, 0.25); }
+  .map-cell-2.burger .id-tag { border-color: var(--gold); color: var(--gold-bright); }
+  .map-cell-2.burger::after {
+    content: '🍔'; position: absolute; top: 12px; right: 18px; font-size: 36px;
+  }
+  .map-cell-2.played { opacity: 0.4; }
+  .map-cell-2.played .ttl { text-decoration: line-through; }
+
+  .map-cell-2.active {
+    border-color: var(--cyan); border-width: 3px;
+    background:
+      linear-gradient(180deg, rgba(15, 60, 80, 0.5) 0%, rgba(8, 26, 36, 0.96) 100%);
+    box-shadow: 0 0 40px rgba(93, 196, 224, 0.55), inset 0 0 80px rgba(93, 196, 224, 0.1);
+    transform: scale(1.02);
+  }
+  .map-cell-2.active::before {
+    content: '◆ NOW SPINNING ◆';
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    background: var(--cyan); color: #061c26;
+    font-family: 'Cinzel'; font-weight: 700; font-size: 12px; letter-spacing: 4px;
+    padding: 4px 14px;
+  }
+
+  .map-screen .footer {
+    position: absolute; bottom: 40px; left: 0; right: 0; text-align: center;
+    font-size: 18px; letter-spacing: 6px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .map-screen .footer kbd {
+    display: inline-block; padding: 4px 14px;
+    background: var(--bg-panel); border: 2px solid var(--gold-deep);
+    color: var(--gold-bright); margin: 0 6px;
+    font-family: 'Cinzel'; font-weight: 700;
+  }
+
+  /* ===================== SHARED: 3 SPECTATOR SLOTS ===================== */
+  .spectators {
+    position: absolute;
+    display: flex; gap: 18px;
+  }
+  .spectators .slot {
+    flex: 1;
+    background:
+      linear-gradient(180deg, rgba(8, 4, 6, 0.92) 0%, rgba(4, 2, 4, 0.96) 100%);
+    border: 2px solid var(--panel-edge);
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .spectators .slot::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 8px, transparent 8px 16px);
+    pointer-events: none;
+  }
+  .spectators .slot .label {
+    position: absolute; top: 14px; left: 16px;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px;
+    color: var(--text-faint); letter-spacing: 5px; text-transform: uppercase;
+  }
+  .spectators .slot .label::before {
+    content: '◆'; color: var(--gold); margin-right: 6px;
+  }
+  .spectators .slot .placeholder {
+    color: var(--text-faint); letter-spacing: 6px; font-size: 16px; font-weight: 700;
+    text-transform: uppercase; opacity: 0.4;
+  }
+
+  /* ===================== MAP READY ===================== */
+  .ready-screen .map-banner {
+    position: absolute; top: 200px; left: 60px; right: 60px;
+    height: 220px;
+    background:
+      linear-gradient(180deg, rgba(50, 30, 22, 0.92) 0%, rgba(22, 12, 10, 0.96) 100%);
+    border: 3px solid var(--gold-deep);
+    padding: 30px 40px;
+    display: grid; grid-template-columns: 1fr 380px; gap: 30px;
+    align-items: center;
+  }
+  .ready-screen .map-banner .left .eyebrow {
+    font-size: 16px; letter-spacing: 6px; color: var(--gold);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .ready-screen .map-banner .left .title {
+    font-family: 'Noto Sans KR', sans-serif; font-weight: 900;
+    font-size: 72px; color: var(--bone); line-height: 1.05; margin: 8px 0 12px;
+    letter-spacing: 1px;
+  }
+  .ready-screen .map-banner .left .subline {
+    display: flex; gap: 24px; align-items: center;
+    font-size: 22px; color: var(--text-muted); letter-spacing: 1px;
+  }
+  .ready-screen .map-banner .left .subline strong { color: var(--cyan); margin-right: 6px; letter-spacing: 4px; font-size: 18px; }
+  .ready-screen .map-banner .left .subline .sep { color: var(--gold-deep); }
+  .ready-screen .map-banner .right {
+    border-left: 2px solid var(--panel-edge);
+    padding-left: 30px;
+    display: grid; gap: 12px;
+  }
+  .ready-screen .map-banner .right .row {
+    display: grid; grid-template-columns: 100px 1fr;
+    align-items: center; gap: 16px;
+  }
+  .ready-screen .map-banner .right .row .lbl {
+    font-size: 14px; letter-spacing: 4px; color: var(--text-faint);
+    font-weight: 700; text-transform: uppercase;
+  }
+  .ready-screen .map-banner .right .row .val {
+    font-family: 'Bebas Neue'; font-size: 36px; line-height: 1;
+    color: var(--gold-bright); letter-spacing: 1px;
+  }
+  .ready-screen .map-banner .right .row.mode .val { color: var(--cyan); }
+  .ready-screen .map-banner .right .row.diff .val { color: var(--normal); font-family: 'Cinzel'; font-size: 28px; font-weight: 900; }
+  .ready-screen .map-banner .burger-stamp {
+    position: absolute; top: -16px; right: 60px;
+    background: var(--gold); color: #1a0a05;
+    font-family: 'Cinzel'; font-weight: 900; font-size: 16px; letter-spacing: 5px;
+    padding: 8px 22px;
+    box-shadow: 0 0 20px var(--gold-glow);
+  }
+  .ready-screen .map-banner .burger-stamp::before { content: '🍔 '; }
+
+  .ready-screen .spectators {
+    top: 460px; left: 60px; right: 460px; height: 380px;
+  }
+  .ready-screen .spectators .slot { aspect-ratio: 4 / 3; flex: 1; }
+  .ready-screen .spectators .slot.ready {
+    border-color: var(--green); box-shadow: 0 0 18px rgba(109, 184, 74, 0.3);
+  }
+  .ready-screen .spectators .slot.ready::after {
+    content: '✓ READY';
+    position: absolute; bottom: 16px; right: 20px;
+    color: var(--green-bright); font-family: 'Cinzel'; font-weight: 700;
+    letter-spacing: 4px; font-size: 16px;
+    background: rgba(20, 40, 20, 0.7);
+    padding: 4px 12px; border: 1.5px solid var(--green);
+  }
+
+  .ready-screen .side-panel {
+    position: absolute; top: 460px; right: 60px; width: 380px; height: 540px;
+    background:
+      linear-gradient(180deg, rgba(40, 24, 18, 0.92) 0%, rgba(18, 10, 8, 0.96) 100%);
+    border: 2px solid var(--panel-edge);
+    padding: 24px;
+    display: flex; flex-direction: column;
+  }
+  .ready-screen .side-panel h3 {
+    margin: 0 0 18px;
+    font-family: 'Cinzel', serif; font-size: 18px; letter-spacing: 5px;
+    color: var(--gold); font-weight: 700;
+    border-bottom: 2px solid var(--gold-deep); padding-bottom: 10px;
+  }
+  .ready-screen .scoreboard {
+    display: grid; gap: 10px; margin-bottom: 24px;
+  }
+  .ready-screen .scoreboard .row {
+    display: grid; grid-template-columns: 16px 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 14px;
+    background: rgba(8, 4, 4, 0.6);
+    border-left: 4px solid var(--panel-edge);
+  }
+  .ready-screen .scoreboard .row.t1 { border-left-color: var(--team1); }
+  .ready-screen .scoreboard .row.t2 { border-left-color: var(--team2); }
+  .ready-screen .scoreboard .row.t3 { border-left-color: var(--team3); }
+  .ready-screen .scoreboard .row.t4 { border-left-color: var(--team4); }
+  .ready-screen .scoreboard .row.active {
+    background: rgba(60, 22, 22, 0.8);
+    box-shadow: inset 0 0 30px rgba(242, 64, 51, 0.18);
+  }
+  .ready-screen .scoreboard .name {
+    font-family: 'Noto Sans KR'; font-weight: 700; font-size: 18px;
+    color: var(--text-main); letter-spacing: 0.5px;
+  }
+  .ready-screen .scoreboard .score {
+    font-family: 'Bebas Neue'; font-size: 28px; line-height: 1;
+    color: var(--gold-bright); letter-spacing: 1px;
+  }
+
+  .ready-screen .chat-box {
+    flex: 1;
+    background: rgba(8, 4, 4, 0.6);
+    border: 1px solid var(--panel-edge-soft);
+    padding: 14px;
+    overflow: hidden;
+    font-size: 16px; line-height: 1.5;
+  }
+  .ready-screen .chat-box .line {
+    margin-bottom: 6px; color: var(--text-muted);
+  }
+  .ready-screen .chat-box .line .who { color: var(--cyan); font-weight: 700; margin-right: 6px; }
+  .ready-screen .chat-box .line .who.t1 { color: var(--team1); }
+
+  .ready-screen .status-strip {
+    position: absolute; bottom: 30px; left: 60px; right: 60px;
+    height: 60px;
+    background:
+      linear-gradient(180deg, rgba(40, 60, 24, 0.6) 0%, rgba(18, 28, 10, 0.96) 100%);
+    border: 2px solid var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cinzel', serif; font-weight: 900; font-size: 26px;
+    letter-spacing: 12px; color: var(--green-bright);
+  }
+  .ready-screen .status-strip::before { content: '⚔ '; margin-right: 12px; }
+  .ready-screen .status-strip::after { content: ' ⚔'; margin-left: 12px; }
+
+  /* ===================== INGAME ===================== */
+  .ingame .spectators {
+    top: 200px; left: 60px; right: 60px; height: 600px;
+  }
+  .ingame .spectators .slot { aspect-ratio: 16 / 9; flex: 1; }
+  .ingame .spectators .slot .placeholder { font-size: 18px; }
+  .ingame .spectators .slot .live-tag {
+    position: absolute; top: 14px; right: 16px;
+    background: var(--blood-bright); color: #fff;
+    font-family: 'Cinzel'; font-weight: 700; font-size: 13px; letter-spacing: 3px;
+    padding: 3px 10px;
+  }
+  .ingame .spectators .slot .live-tag::before { content: '● '; animation: pulse 1.6s infinite; }
+
+  .ingame .boss-bar-area {
+    position: absolute; bottom: 30px; left: 60px; right: 60px;
+    height: 220px;
+    background:
+      linear-gradient(180deg, rgba(50, 12, 12, 0.92) 0%, rgba(20, 6, 6, 0.96) 100%);
+    border: 3px solid var(--blood-deep);
+    padding: 22px 30px;
+    position: absolute;
+  }
+  .ingame .boss-bar-area .header-row {
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; gap: 20px; margin-bottom: 14px;
+  }
+  .ingame .boss-bar-area .skull {
+    font-size: 50px; line-height: 1; color: var(--blood-bright);
+    text-shadow: 0 0 20px rgba(232, 64, 48, 0.6);
+  }
+  .ingame .boss-bar-area .meta {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 22px; letter-spacing: 8px; color: var(--bone);
+  }
+  .ingame .boss-bar-area .meta .diff-tag {
+    color: var(--normal); margin-left: 14px;
+  }
+  .ingame .boss-bar-area .damage-num {
+    font-family: 'Bebas Neue'; font-size: 38px; letter-spacing: 2px; line-height: 1;
+    color: var(--gold-bright);
+  }
+  .ingame .boss-bar-area .damage-num .total { color: var(--text-muted); }
+
+  .ingame .bar-track {
+    position: relative;
+    height: 64px;
+    background: linear-gradient(180deg, #2a0606 0%, #170303 100%);
+    border: 2px solid var(--blood-deep);
+    overflow: hidden;
+  }
+  .ingame .bar-fill {
+    position: absolute; top: 0; left: 0; bottom: 0;
+    width: 64%;
+    background:
+      linear-gradient(180deg, #ffeab0 0%, var(--gold) 30%, var(--blood-bright) 70%, var(--blood) 100%);
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(232, 64, 48, 0.55);
+  }
+  .ingame .bar-fill::after {
+    content: ''; position: absolute; right: -2px; top: -4px; bottom: -4px; width: 4px;
+    background: #fff;
+    box-shadow: 0 0 16px #fff, 0 0 30px var(--gold-bright);
+  }
+  .ingame .bar-track .ticks {
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 9.99%, rgba(0,0,0,0.4) 10% 10.1%);
+    pointer-events: none;
+  }
+  .ingame .bar-track .pct {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: 'Cinzel', serif; font-weight: 900; font-size: 28px;
+    color: var(--bone); letter-spacing: 4px;
+    text-shadow: 0 0 12px rgba(0,0,0,0.9), 0 2px 0 #1a0a05;
+  }
+
+  .ingame .team-row {
+    margin-top: 16px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  }
+  .ingame .team-tile {
+    padding: 8px 14px;
+    background: rgba(8, 4, 4, 0.6);
+    border-left: 4px solid var(--panel-edge);
+    display: grid; grid-template-columns: 1fr auto; align-items: center;
+  }
+  .ingame .team-tile.t1 { border-left-color: var(--team1); }
+  .ingame .team-tile.t2 { border-left-color: var(--team2); }
+  .ingame .team-tile.t3 { border-left-color: var(--team3); }
+  .ingame .team-tile.t4 { border-left-color: var(--team4); }
+  .ingame .team-tile.active {
+    background: rgba(60, 22, 22, 0.7);
+    box-shadow: inset 0 0 24px rgba(242, 64, 51, 0.2);
+  }
+  .ingame .team-tile .nm {
+    font-family: 'Noto Sans KR'; font-weight: 700; font-size: 17px;
+    color: var(--text-main); letter-spacing: 0.5px;
+  }
+  .ingame .team-tile .sc {
+    font-family: 'Bebas Neue'; font-size: 26px; line-height: 1;
+    color: var(--gold-bright); letter-spacing: 1px;
+  }
+
+  .ingame .ingame-chat {
+    position: absolute; top: 200px; right: 60px;
+    width: 260px; height: 600px;
+    background: rgba(8, 4, 4, 0.7);
+    border: 1.5px solid var(--panel-edge-soft);
+    padding: 12px 14px;
+    font-size: 14px; color: var(--text-muted); line-height: 1.4;
+    display: none; /* hidden in this layout — leaving as backup if user wants overlay chat */
+  }
+
+  /* ===================== RESULT (CLEAR / FAIL shared) ===================== */
+  .result-screen .center-mass {
+    position: absolute; top: 180px; left: 0; right: 0;
+    text-align: center;
+  }
+  .result-screen .crest {
+    font-size: 100px; line-height: 1; margin-bottom: 8px;
+  }
+  .result-screen .verdict {
+    font-family: 'Cinzel', serif; font-weight: 900;
+    font-size: 200px; letter-spacing: 24px; line-height: 1;
+    margin: 12px 0;
+  }
+  .result-screen.clear .crest { color: var(--green-bright); text-shadow: 0 0 50px rgba(163, 227, 111, 0.45); }
+  .result-screen.clear .verdict {
+    color: var(--green-bright);
+    text-shadow: 0 0 60px rgba(109, 184, 74, 0.5), 0 8px 0 #0a1a04;
+    background: linear-gradient(180deg, #d3ff9a 0%, #6db84a 60%, #2a4a14 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .result-screen.fail .crest { color: var(--blood-bright); text-shadow: 0 0 50px rgba(232, 64, 48, 0.5); }
+  .result-screen.fail .verdict {
+    color: var(--blood-bright);
+    text-shadow: 0 0 60px rgba(214, 50, 50, 0.55), 0 8px 0 #1a0606;
+    background: linear-gradient(180deg, #ffb4a8 0%, #d63232 60%, #5e1310 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .result-screen .message {
+    font-family: 'Noto Sans KR'; font-weight: 700;
+    font-size: 32px; letter-spacing: 4px; color: var(--text-main);
+    margin-top: 16px;
+  }
+  .result-screen .map-info {
+    margin-top: 28px;
+    font-size: 22px; letter-spacing: 3px; color: var(--text-muted);
+    font-weight: 600;
+  }
+  .result-screen .map-info strong { color: var(--cyan); margin-right: 6px; letter-spacing: 4px; font-size: 16px; font-weight: 700; }
+  .result-screen .map-info .dot { color: var(--gold-deep); margin: 0 14px; }
+
+  .result-screen .boss-bar {
+    position: absolute; bottom: 320px; left: 200px; right: 200px;
+    height: 90px;
+    background: linear-gradient(180deg, #2a0606 0%, #170303 100%);
+    border: 3px solid var(--blood-deep);
+    overflow: hidden;
+  }
+  .result-screen.clear .boss-bar .fill {
+    width: 100%;
+    background: linear-gradient(180deg, #d3ff9a 0%, var(--green) 60%, #2a4a14 100%);
+    box-shadow: 0 0 40px rgba(109, 184, 74, 0.6);
+    height: 100%; position: absolute;
+  }
+  .result-screen.fail .boss-bar .fill {
+    width: 66%;
+    background: linear-gradient(180deg, #ffeab0 0%, var(--gold) 30%, var(--blood-bright) 70%, var(--blood) 100%);
+    height: 100%; position: absolute;
+  }
+  .result-screen .boss-bar .ticks {
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 9.99%, rgba(0,0,0,0.4) 10% 10.1%);
+  }
+  .result-screen .boss-bar .label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: 'Cinzel'; font-weight: 900; font-size: 26px; letter-spacing: 4px;
+    color: var(--bone);
+    text-shadow: 0 0 12px rgba(0,0,0,0.9), 0 2px 0 #1a0a05;
+  }
+
+  .result-screen .stats-row {
+    position: absolute; bottom: 60px; left: 60px; right: 60px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+    height: 200px;
+  }
+  .result-screen .stat-card {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(40, 24, 18, 0.92) 0%, rgba(18, 10, 8, 0.96) 100%);
+    border: 2px solid var(--panel-edge);
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .result-screen .stat-card .lbl {
+    font-family: 'Cinzel'; font-weight: 700;
+    font-size: 16px; letter-spacing: 6px; color: var(--text-faint);
+    text-transform: uppercase;
+  }
+  .result-screen .stat-card .val {
+    font-family: 'Bebas Neue'; font-size: 92px; line-height: 1;
+    color: var(--gold-bright); margin-top: 16px; letter-spacing: 2px;
+  }
+  .result-screen .stat-card.gold .val { color: var(--gold-bright); }
+  .result-screen .stat-card.red .val { color: var(--blood-bright); }
+  .result-screen .stat-card.green .val { color: var(--green-bright); }
+  .result-screen .stat-card .unit {
+    display: block; font-family: 'Cinzel'; font-size: 14px;
+    letter-spacing: 4px; color: var(--text-faint); margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<nav class="jumper">
+  <span class="brand">◈ BOSS RAID OVERLAY</span>
+  <a href="#standby">1. Standby</a>
+  <a href="#burger">2. Burger Reveal</a>
+  <a href="#difficulty">3. Difficulty</a>
+  <a href="#mode">4. Mode Roulette</a>
+  <a href="#map">5. Map Roulette</a>
+  <a href="#ready">6. Map Ready</a>
+  <a href="#ingame">7. In Game</a>
+  <a href="#clear">8. Clear</a>
+  <a href="#fail">9. Fail</a>
+  <span class="spacer"></span>
+  <span class="note">1920×1080 · scaled to fit · open in browser fullscreen for accurate preview</span>
+</nav>
+
+<div class="screens">
+
+<!-- =========================================================
+     1. STANDBY SCREEN
+     ========================================================= -->
+<div class="screen-wrap" id="standby">
+  <div class="label">Screen 1 / standby — StartScreen.prefab</div>
+  <div class="screen">
+    <div class="standby">
+      <div class="crest">⚔</div>
+      <h1 class="title">BOSS RAID</h1>
+      <div class="subtitle">협 동 보 스 레 이 드 · CO-OP RAID OVERLAY</div>
+      <div class="divider"></div>
+      <div class="teams">
+        <div class="team-card t1 active">
+          <div>
+            <div class="topbar"></div>
+            <div class="label">Team 01 · 도전자</div>
+            <div class="name">삼랄부마스터</div>
+          </div>
+          <div class="roster">Yiriru · moon2door · AXDVGN<br>Lezhic · VIichan · A</div>
+        </div>
+        <div class="team-card t2">
+          <div>
+            <div class="topbar"></div>
+            <div class="label">Team 02</div>
+            <div class="name">Team B</div>
+          </div>
+          <div class="empty">— roster pending —</div>
+        </div>
+        <div class="team-card t3">
+          <div>
+            <div class="topbar"></div>
+            <div class="label">Team 03</div>
+            <div class="name">Team C</div>
+          </div>
+          <div class="empty">— roster pending —</div>
+        </div>
+        <div class="team-card t4">
+          <div>
+            <div class="topbar"></div>
+            <div class="label">Team 04</div>
+            <div class="name">Team D</div>
+          </div>
+          <div class="empty">— roster pending —</div>
+        </div>
+      </div>
+      <div class="footer">Awaiting raid commencement</div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     2. BURGER REVEAL
+     ========================================================= -->
+<div class="screen-wrap" id="burger">
+  <div class="label">Screen 2 / burgerReveal — BurgerMapSelectScreen.prefab</div>
+  <div class="screen burger-screen">
+    <div class="title-bar">
+      <div class="ribbon">🍔  BURGER MAPS LOCKED  🍔</div>
+      <div class="sub">Eight maps carry viewer burger stakes</div>
+    </div>
+    <div class="grid-wrap">
+      <div class="row">
+        <div class="mode-tag">NM</div>
+        <div class="map-cell"><div class="id">NM1</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell burger"><div class="id">NM2</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+        <div class="map-cell"><div class="id">NM3</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell burger"><div class="id">NM4</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+        <div class="map-cell"><div class="id">NM5</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell"><div class="id">NM6</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+      </div>
+      <div class="row">
+        <div class="mode-tag">HD</div>
+        <div class="map-cell burger"><div class="id">HD1</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+        <div class="map-cell"><div class="id">HD2</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell"><div class="id">HD3</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell"><div class="id">HD4</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell burger"><div class="id">HD5</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+        <div class="map-cell"><div class="id">HD6</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+      </div>
+      <div class="row">
+        <div class="mode-tag">HR</div>
+        <div class="map-cell"><div class="id">HR1</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell"><div class="id">HR2</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell burger"><div class="id">HR3</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+        <div class="map-cell"><div class="id">HR4</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell"><div class="id">HR5</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell burger"><div class="id">HR6</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+      </div>
+      <div class="row">
+        <div class="mode-tag">DT</div>
+        <div class="map-cell"><div class="id">DT1</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell"><div class="id">DT2</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell"><div class="id">DT3</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell burger"><div class="id">DT4</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+        <div class="map-cell"><div class="id">DT5</div><div class="ttl">Initial</div><div class="meta">chaser01</div></div>
+        <div class="map-cell burger"><div class="id">DT6</div><div class="ttl">Initial</div><div class="meta">chaser01</div><div class="stamp">LOCKED</div></div>
+      </div>
+    </div>
+    <div class="footer">Press <kbd>SPACE</kbd> to reroll the burger lottery</div>
+  </div>
+</div>
+
+<!-- =========================================================
+     3. DIFFICULTY SELECT
+     ========================================================= -->
+<div class="screen-wrap" id="difficulty">
+  <div class="label">Screen 3 / difficultySelect — DifficultySelectScreen.prefab</div>
+  <div class="screen diff-screen">
+    <div class="title-area">
+      <div class="eye">— ROUND 3 / 8 —</div>
+      <div class="ttl">SELECT DIFFICULTY</div>
+      <div class="desc">팀이 도전할 보스의 강함을 정해주세요</div>
+    </div>
+    <div class="cards">
+      <div class="diff-card easy">
+        <div class="badge">EASY · 쉬움</div>
+        <div class="icon">🛡</div>
+        <div class="name">EASY</div>
+        <div class="stats">
+          <div class="stat-row hp"><div class="lbl">Boss HP</div><div class="val">1,000,000</div></div>
+          <div class="stat-row prize"><div class="lbl">Prize</div><div class="val">3,000₩</div></div>
+        </div>
+      </div>
+      <div class="diff-card normal selected">
+        <div class="pick-mark">CURRENT PICK</div>
+        <div class="badge">NORMAL · 보통</div>
+        <div class="icon">⚔</div>
+        <div class="name">NORMAL</div>
+        <div class="stats">
+          <div class="stat-row hp"><div class="lbl">Boss HP</div><div class="val">1,400,000</div></div>
+          <div class="stat-row prize"><div class="lbl">Prize</div><div class="val">5,000₩</div></div>
+        </div>
+      </div>
+      <div class="diff-card hard">
+        <div class="badge">HARD · 어려움</div>
+        <div class="icon">☠</div>
+        <div class="name">HARD</div>
+        <div class="stats">
+          <div class="stat-row hp"><div class="lbl">Boss HP</div><div class="val">2,000,000</div></div>
+          <div class="stat-row prize"><div class="lbl">Prize</div><div class="val">15,000₩</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      Press <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> · <kbd>E</kbd><kbd>N</kbd><kbd>H</kbd> to choose · <kbd>ENTER</kbd> to confirm
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     4. MODE ROULETTE
+     ========================================================= -->
+<div class="screen-wrap" id="mode">
+  <div class="label">Screen 4 / rouletteMode — ModeSelectScreen.prefab</div>
+  <div class="screen mode-screen">
+    <div class="title-area">
+      <div class="eye">— TEAM: 삼랄부마스터 · DIFFICULTY: NORMAL —</div>
+      <div class="ttl">MODE ROULETTE</div>
+    </div>
+    <div class="pointer-up"></div>
+    <div class="reel-frame">
+      <div class="mode-tile">
+        <div class="label">NM</div>
+        <div class="desc">No Mod</div>
+        <div class="count">6 MAPS</div>
+      </div>
+      <div class="mode-tile">
+        <div class="label">HD</div>
+        <div class="desc">Hidden</div>
+        <div class="count">6 MAPS</div>
+      </div>
+      <div class="mode-tile active">
+        <div class="label">HR</div>
+        <div class="desc">Hard Rock</div>
+        <div class="count">6 MAPS</div>
+      </div>
+      <div class="mode-tile">
+        <div class="label">DT</div>
+        <div class="desc">Double Time</div>
+        <div class="count">6 MAPS</div>
+      </div>
+    </div>
+    <div class="pointer-down"></div>
+    <div class="footer">Press <kbd>SPACE</kbd> to spin the wheel of fate</div>
+  </div>
+</div>
+
+<!-- =========================================================
+     5. MAP ROULETTE
+     ========================================================= -->
+<div class="screen-wrap" id="map">
+  <div class="label">Screen 5 / rouletteMap — MapSelectScreen.prefab</div>
+  <div class="screen map-screen">
+    <div class="title-area">
+      <div class="eye">— SELECTED MODE · ROUND 3 / 8 —</div>
+      <div class="ttl"><span class="mode-token">HR</span> &nbsp; MAP ROULETTE</div>
+    </div>
+    <div class="grid">
+      <div class="map-cell-2">
+        <div class="head"><div class="id-tag">HR1</div><div class="mode-tag">HR</div></div>
+        <div class="ttl">Initial</div>
+        <div class="diff">Even now, I'm searching for you.</div>
+        <div class="creator"><span>BY</span>Poppin'Party · chaser01</div>
+      </div>
+      <div class="map-cell-2 burger">
+        <div class="head"><div class="id-tag">HR2</div><div class="mode-tag">HR</div></div>
+        <div class="ttl">Initial</div>
+        <div class="diff">Even now, I'm searching for you.</div>
+        <div class="creator"><span>BY</span>Poppin'Party · chaser01</div>
+      </div>
+      <div class="map-cell-2 active">
+        <div class="head"><div class="id-tag">HR3</div><div class="mode-tag">HR</div></div>
+        <div class="ttl">Initial</div>
+        <div class="diff">Even now, I'm searching for you.</div>
+        <div class="creator"><span>BY</span>Poppin'Party · chaser01</div>
+      </div>
+      <div class="map-cell-2 played">
+        <div class="head"><div class="id-tag">HR4</div><div class="mode-tag">HR</div></div>
+        <div class="ttl">Initial</div>
+        <div class="diff">Even now, I'm searching for you.</div>
+        <div class="creator"><span>BY</span>Poppin'Party · chaser01</div>
+      </div>
+      <div class="map-cell-2">
+        <div class="head"><div class="id-tag">HR5</div><div class="mode-tag">HR</div></div>
+        <div class="ttl">Initial</div>
+        <div class="diff">Even now, I'm searching for you.</div>
+        <div class="creator"><span>BY</span>Poppin'Party · chaser01</div>
+      </div>
+      <div class="map-cell-2 burger">
+        <div class="head"><div class="id-tag">HR6</div><div class="mode-tag">HR</div></div>
+        <div class="ttl">Initial</div>
+        <div class="diff">Even now, I'm searching for you.</div>
+        <div class="creator"><span>BY</span>Poppin'Party · chaser01</div>
+      </div>
+    </div>
+    <div class="footer">Press <kbd>SPACE</kbd> to draw the map</div>
+  </div>
+</div>
+
+<!-- =========================================================
+     6. MAP READY
+     ========================================================= -->
+<div class="screen-wrap" id="ready">
+  <div class="label">Screen 6 / mapReady — MapReadyScreen.prefab (with shared HUD header)</div>
+  <div class="screen ready-screen">
+    <div class="hud">
+      <div class="left panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="event">BOSS RAID</div>
+        <div class="team">
+          <div class="badge"></div>
+          <div>
+            <div class="role">Current Team</div>
+            <div class="name">삼랄부마스터</div>
+          </div>
+        </div>
+      </div>
+      <div class="center">
+        <div class="eyebrow">▼ NOW SHOWING ▼</div>
+        <div class="screen-label">MAP READY</div>
+        <div class="map-title">HR3 <strong>Initial — Even now, I'm searching for you.</strong></div>
+      </div>
+      <div class="right panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="stat"><div class="lbl">Round</div><div class="val">3 / 8</div></div>
+        <div class="stat gold"><div class="lbl">Prize</div><div class="val">25K</div></div>
+        <div class="stat gold"><div class="lbl">Burgers</div><div class="val">1</div></div>
+        <div class="stat green"><div class="lbl">Record</div><div class="val">2C 0F</div></div>
+      </div>
+      <div class="conn">BRIDGE ONLINE</div>
+    </div>
+
+    <div class="map-banner">
+      <div class="burger-stamp">BURGER TARGET</div>
+      <div class="left">
+        <div class="eyebrow">SELECTED MAP</div>
+        <div class="title">Initial</div>
+        <div class="subline">
+          <span><strong>ARTIST</strong>Poppin'Party</span>
+          <span class="sep">·</span>
+          <span><strong>MAPPER</strong>chaser01</span>
+          <span class="sep">·</span>
+          <span><strong>DIFF</strong>Even now, I'm searching for you.</span>
+        </div>
+      </div>
+      <div class="right">
+        <div class="row mode"><div class="lbl">Mode</div><div class="val">HR</div></div>
+        <div class="row diff"><div class="lbl">Boss</div><div class="val">NORMAL</div></div>
+        <div class="row hp"><div class="lbl">HP</div><div class="val">1,400,000</div></div>
+      </div>
+    </div>
+
+    <div class="spectators">
+      <div class="slot ready"><div class="label">Spectator 1 · Yiriru</div><div class="placeholder">osu! tourney</div></div>
+      <div class="slot ready"><div class="label">Spectator 2 · moon2door</div><div class="placeholder">osu! tourney</div></div>
+      <div class="slot"><div class="label">Spectator 3 · AXDVGN</div><div class="placeholder">osu! tourney</div></div>
+    </div>
+
+    <div class="side-panel">
+      <h3>Team Damage</h3>
+      <div class="scoreboard">
+        <div class="row t1 active">
+          <div></div>
+          <div class="name">삼랄부마스터</div>
+          <div class="score">0</div>
+        </div>
+        <div class="row t2">
+          <div></div>
+          <div class="name">Team B</div>
+          <div class="score">0</div>
+        </div>
+        <div class="row t3">
+          <div></div>
+          <div class="name">Team C</div>
+          <div class="score">0</div>
+        </div>
+        <div class="row t4">
+          <div></div>
+          <div class="name">Team D</div>
+          <div class="score">0</div>
+        </div>
+      </div>
+
+      <h3>Room Chat</h3>
+      <div class="chat-box">
+        <div class="line"><span class="who">BanchoBot</span>Beatmap changed to Initial [HR]</div>
+        <div class="line"><span class="who t1">Yiriru</span>가보자고 ㄱㄱ</div>
+        <div class="line"><span class="who t1">moon2door</span>레디</div>
+        <div class="line"><span class="who t1">Lezhic</span>ㄱ</div>
+        <div class="line"><span class="who">BanchoBot</span>!mp timer 90 — 1:30 remaining</div>
+      </div>
+    </div>
+
+    <div class="status-strip">MAP READY · 모두 준비 대기 중</div>
+  </div>
+</div>
+
+<!-- =========================================================
+     7. IN GAME
+     ========================================================= -->
+<div class="screen-wrap" id="ingame">
+  <div class="label">Screen 7 / inGame — InGameScreen.prefab (with shared HUD header)</div>
+  <div class="screen ingame">
+    <div class="hud">
+      <div class="left panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="event">BOSS RAID</div>
+        <div class="team">
+          <div class="badge"></div>
+          <div>
+            <div class="role">Current Team</div>
+            <div class="name">삼랄부마스터</div>
+          </div>
+        </div>
+      </div>
+      <div class="center">
+        <div class="eyebrow">▼ NOW SHOWING ▼</div>
+        <div class="screen-label">RAID LIVE</div>
+        <div class="map-title">HR3 <strong>Initial — Even now, I'm searching for you.</strong></div>
+      </div>
+      <div class="right panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="stat"><div class="lbl">Round</div><div class="val">3 / 8</div></div>
+        <div class="stat gold"><div class="lbl">Prize</div><div class="val">25K</div></div>
+        <div class="stat gold"><div class="lbl">Burgers</div><div class="val">1</div></div>
+        <div class="stat green"><div class="lbl">Record</div><div class="val">2C 0F</div></div>
+      </div>
+      <div class="conn">BRIDGE ONLINE</div>
+    </div>
+
+    <div class="spectators">
+      <div class="slot"><div class="live-tag">LIVE</div><div class="label">Yiriru</div><div class="placeholder">in-game capture</div></div>
+      <div class="slot"><div class="live-tag">LIVE</div><div class="label">moon2door</div><div class="placeholder">in-game capture</div></div>
+      <div class="slot"><div class="live-tag">LIVE</div><div class="label">AXDVGN</div><div class="placeholder">in-game capture</div></div>
+    </div>
+
+    <div class="boss-bar-area">
+      <div class="header-row">
+        <div class="skull">☠</div>
+        <div class="meta">BOSS HP <span class="diff-tag">— NORMAL —</span></div>
+        <div class="damage-num">896,420 <span class="total">/ 1,400,000</span></div>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill"></div>
+        <div class="ticks"></div>
+        <div class="pct">64.0%</div>
+      </div>
+      <div class="team-row">
+        <div class="team-tile t1 active"><div class="nm">삼랄부마스터</div><div class="sc">512,800</div></div>
+        <div class="team-tile t2"><div class="nm">Team B</div><div class="sc">160,200</div></div>
+        <div class="team-tile t3"><div class="nm">Team C</div><div class="sc">132,420</div></div>
+        <div class="team-tile t4"><div class="nm">Team D</div><div class="sc">91,000</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     8. SUCCESS RESULT
+     ========================================================= -->
+<div class="screen-wrap" id="clear">
+  <div class="label">Screen 8 / result — clear — SuccessResultScreen.prefab</div>
+  <div class="screen result-screen clear">
+    <div class="hud">
+      <div class="left panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="event">BOSS RAID</div>
+        <div class="team">
+          <div class="badge"></div>
+          <div>
+            <div class="role">Current Team</div>
+            <div class="name">삼랄부마스터</div>
+          </div>
+        </div>
+      </div>
+      <div class="center">
+        <div class="eyebrow">▼ ROUND 3 / 8 RESULT ▼</div>
+        <div class="screen-label" style="color: var(--green-bright);">VICTORY</div>
+        <div class="map-title">HR3 <strong>Initial · NORMAL · BURGER TARGET</strong></div>
+      </div>
+      <div class="right panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="stat"><div class="lbl">Round</div><div class="val">3 / 8</div></div>
+        <div class="stat gold"><div class="lbl">Prize</div><div class="val">30K</div></div>
+        <div class="stat gold"><div class="lbl">Burgers</div><div class="val">1</div></div>
+        <div class="stat green"><div class="lbl">Record</div><div class="val">3C 0F</div></div>
+      </div>
+      <div class="conn">BRIDGE ONLINE</div>
+    </div>
+
+    <div class="center-mass">
+      <div class="crest">👑</div>
+      <h1 class="verdict">CLEAR</h1>
+      <div class="message">Boss defeated. Prize pool increased.</div>
+      <div class="map-info">
+        <span><strong>MAP</strong>Initial</span><span class="dot">◆</span>
+        <span><strong>MODE</strong>HR</span><span class="dot">◆</span>
+        <span><strong>BOSS</strong>NORMAL · 1.4M HP</span>
+      </div>
+    </div>
+
+    <div class="boss-bar">
+      <div class="fill"></div>
+      <div class="ticks"></div>
+      <div class="label">100% · BOSS DEFEATED</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card gold">
+        <div class="lbl">Prize Pool</div>
+        <div class="val">30,000<span class="unit">KRW · +5,000</span></div>
+      </div>
+      <div class="stat-card gold">
+        <div class="lbl">Burgers</div>
+        <div class="val">1<span class="unit">earned</span></div>
+      </div>
+      <div class="stat-card red">
+        <div class="lbl">Burger Miss</div>
+        <div class="val">0<span class="unit">missed</span></div>
+      </div>
+      <div class="stat-card green">
+        <div class="lbl">Record</div>
+        <div class="val">3C&nbsp;0F<span class="unit">clear / fail</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     9. FAIL RESULT
+     ========================================================= -->
+<div class="screen-wrap" id="fail">
+  <div class="label">Screen 9 / result — fail — FailResultScreen.prefab</div>
+  <div class="screen result-screen fail">
+    <div class="hud">
+      <div class="left panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="event">BOSS RAID</div>
+        <div class="team">
+          <div class="badge"></div>
+          <div>
+            <div class="role">Current Team</div>
+            <div class="name">삼랄부마스터</div>
+          </div>
+        </div>
+      </div>
+      <div class="center">
+        <div class="eyebrow">▼ ROUND 3 / 8 RESULT ▼</div>
+        <div class="screen-label" style="color: var(--blood-bright);">DEFEAT</div>
+        <div class="map-title">HR3 <strong>Initial · NORMAL</strong></div>
+      </div>
+      <div class="right panel gilded">
+        <div class="cor-tr"></div><div class="cor-bl"></div>
+        <div class="stat"><div class="lbl">Round</div><div class="val">3 / 8</div></div>
+        <div class="stat gold"><div class="lbl">Prize</div><div class="val">25K</div></div>
+        <div class="stat gold"><div class="lbl">Burgers</div><div class="val">1</div></div>
+        <div class="stat red"><div class="lbl">Record</div><div class="val">2C 1F</div></div>
+      </div>
+      <div class="conn">BRIDGE ONLINE</div>
+    </div>
+
+    <div class="center-mass">
+      <div class="crest">☠</div>
+      <h1 class="verdict">FAILED</h1>
+      <div class="message">Boss survived. Failure count increased.</div>
+      <div class="map-info">
+        <span><strong>MAP</strong>Initial</span><span class="dot">◆</span>
+        <span><strong>MODE</strong>HR</span><span class="dot">◆</span>
+        <span><strong>BOSS</strong>NORMAL · 1.4M HP</span>
+      </div>
+    </div>
+
+    <div class="boss-bar">
+      <div class="fill"></div>
+      <div class="ticks"></div>
+      <div class="label">66.0% · BOSS SURVIVED</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card gold">
+        <div class="lbl">Prize Pool</div>
+        <div class="val">25,000<span class="unit">KRW · unchanged</span></div>
+      </div>
+      <div class="stat-card gold">
+        <div class="lbl">Burgers</div>
+        <div class="val">1<span class="unit">earned</span></div>
+      </div>
+      <div class="stat-card red">
+        <div class="lbl">Burger Miss</div>
+        <div class="val">0<span class="unit">missed</span></div>
+      </div>
+      <div class="stat-card red">
+        <div class="lbl">Record</div>
+        <div class="val">2C&nbsp;1F<span class="unit">clear / fail</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

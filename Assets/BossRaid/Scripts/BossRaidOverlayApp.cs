@@ -184,7 +184,7 @@ namespace BossRaid
         private void SpinPreviewMode()
         {
             var state = stateStore.Current;
-            var modes = GetModes(state);
+            var modes = GetEligibleModes(state);
 
             if (modes.Count > 0)
             {
@@ -213,7 +213,7 @@ namespace BossRaid
         private void SpinPreviewMap()
         {
             var state = stateStore.Current;
-            var candidates = GetMapCandidates(state, true);
+            var candidates = GetMapCandidates(state, false);
 
             if (candidates.Count > 0)
             {
@@ -420,7 +420,7 @@ namespace BossRaid
 
         private IEnumerator RollModeRoulette()
         {
-            var modes = GetModes(stateStore.Current);
+            var modes = GetEligibleModes(stateStore.Current);
             if (modes.Count == 0)
             {
                 rouletteRoutine = null;
@@ -554,7 +554,7 @@ namespace BossRaid
 
         private IEnumerator RollMapRoulette()
         {
-            var candidates = GetMapCandidates(stateStore.Current, true);
+            var candidates = GetMapCandidates(stateStore.Current, false);
             if (candidates.Count == 0)
             {
                 rouletteRoutine = null;
@@ -832,21 +832,33 @@ namespace BossRaid
                 }
             }
 
-            if (candidates.Count > 0 || !includePlayedFallback)
-            {
-                return candidates;
-            }
+            return candidates;
+        }
 
+        private static List<string> GetEligibleModes(BossRaidState state)
+        {
+            var modes = new List<string>();
+            var roundIds = state.selectedRoundMapIds ?? new List<string>();
             for (var i = 0; i < state.mapPool.Count; i++)
             {
                 var map = state.mapPool[i];
-                if (map.mode == state.selectedMode && (roundIds.Count == 0 || roundIds.Contains(map.id)))
+                if (map.played)
                 {
-                    candidates.Add(map);
+                    continue;
+                }
+
+                if (roundIds.Count > 0 && !roundIds.Contains(map.id))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(map.mode) && !modes.Contains(map.mode))
+                {
+                    modes.Add(map.mode);
                 }
             }
 
-            return candidates;
+            return modes;
         }
 
         private static bool IsControlPressed()

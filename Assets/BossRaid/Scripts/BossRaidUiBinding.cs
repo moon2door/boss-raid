@@ -28,7 +28,8 @@ namespace BossRaid
         SelectedModeMap,
         BurgerMap,
         ResultStat,
-        Spectator
+        Spectator,
+        CurrentTeamPlayer
     }
 
     public sealed class BossRaidUiBinding : MonoBehaviour
