@@ -28,13 +28,17 @@ namespace BossRaid.UIDesign.Editor
         private static readonly Color BgCard   = Hex("240a44");
         private static readonly Color BgDarker = Hex("050018");
 
-        private static readonly Color Line     = Hex("5e2d8f");
+        // 비선택 패널/카드의 기본 보더. v3 원본(#5e2d8f)은 다크 BG 위에서 거의 안 보여서
+        // Unity 렌더링용으로 조금 밝게 조정.
+        private static readonly Color Line     = Hex("8a52c8");
 
         private static readonly Color Magenta  = Hex("ff2bd6");
         private static readonly Color Cyan     = Hex("00f0ff");
         private static readonly Color Yellow   = Hex("ffe600");
         private static readonly Color Green    = Hex("00ff88");
         private static readonly Color Red      = Hex("ff3060");
+        // v3 yellow→magenta 세로 그라데이션의 중간색 — "크롬 텍스트"를 단색으로 근사
+        private static readonly Color Chrome   = Hex("ff8a3c");
 
         private static readonly Color Text      = Hex("f8eef8");
         private static readonly Color TextSoft  = Hex("d3bce8");
@@ -45,6 +49,17 @@ namespace BossRaid.UIDesign.Editor
         private static readonly Color Team2 = Cyan;
         private static readonly Color Team3 = Green;
         private static readonly Color Team4 = Yellow;
+
+        private const int MinimumReadableFontSize = 16;
+        // 안쪽 강한 외곽선(가독성) + 바깥 부드러운 헤일로(글로우) 2단
+        // 슈퍼샘플링 비활성 상태이므로 거리는 화면 픽셀 그대로.
+        private const float TextGlowInnerAlpha    = 0.95f;
+        private const float TextGlowInnerDistance = 1.5f;
+        private const float TextGlowOuterAlpha    = 0.40f;
+        private const float TextGlowOuterDistance = 3f;
+        // 검은 드롭섀도(어두운 배경 위에서 텍스트 가독성 확보)
+        private const float TextShadowAlpha       = 0.55f;
+        private const float TextShadowDistance    = 2f;
 
         // ----- 메뉴 진입점 --------------------------------------------------------------
         [MenuItem("Boss Raid/UI_Design v3/Generate Prefabs")]
@@ -83,23 +98,23 @@ namespace BossRaid.UIDesign.Editor
             var insertCoin = TopText(root.transform, "InsertCoin",
                 "◆ INSERT COIN TO BEGIN ◆", 18, Cyan, true,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0, -200), new Vector2(600, 40));
+                new Vector2(0, -170), new Vector2(900, 44));
 
-            // BOSS RAID title (chrome → 단일 magenta 컬러로 근사)
-            TitleText(root.transform, "Title", "BOSS RAID", 220, Magenta, true,
+            // BOSS RAID title — 크롬색(yellow→magenta 중간) 단색 근사
+            TitleText(root.transform, "Title", "BOSS RAID", 220, Chrome, true,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0, 80), new Vector2(1700, 260));
+                new Vector2(0, 115), new Vector2(1700, 220));
 
-            // CO-OP RAID OVERLAY
+            // CO-OP RAID OVERLAY — 타이틀 바로 아래
             TitleText(root.transform, "Subtitle", "> CO-OP RAID OVERLAY _", 38, Cyan, true,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0, -70), new Vector2(1200, 60));
+                new Vector2(0, -72), new Vector2(1300, 58));
 
             // VersionBar 4개 칩
             var versionBar = CenteredRect("VersionBar", root.transform,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0, -150), new Vector2(1100, 44));
-            HLayoutAuto(versionBar.gameObject, 18, false, false);
+                new Vector2(0, -170), new Vector2(1120, 48));
+            HLayoutAuto(versionBar.gameObject, 20, true, true, false, false);
             VerChip(versionBar, "SYSTEM ONLINE", Green, true);
             VerChip(versionBar, "v0.9.4",        TextMuted, false);
             VerChip(versionBar, "4 TEAMS LOADED",TextMuted, false);
@@ -108,7 +123,7 @@ namespace BossRaid.UIDesign.Editor
             // 팀 카드 4개 (1640 wide)
             var teams = CenteredRect("Teams", root.transform,
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0, -340), new Vector2(1640, 200));
+                new Vector2(0, -340), new Vector2(1680, 190));
             HLayoutAuto(teams.gameObject, 22, true, true);
 
             TeamCard(teams, "PLAYER 01", "삼랄부마스터",
@@ -135,39 +150,46 @@ namespace BossRaid.UIDesign.Editor
         {
             var card = Panel("TeamCard_" + ribbon, parent.transform,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
-                BgCard, borderColor);
+                BgCard, Line);
             card.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
 
-            // Ribbon
+            // Ribbon — 카드 상단 보더 위로 약간 걸치게 (반쯤 위, 반쯤 안)
             var ribbonRect = NewRect("Ribbon", card.transform,
                 new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(-2, 0), new Vector2(130, 26));
+                new Vector2(-2, -12), new Vector2(130, 18));
             ribbonRect.gameObject.AddComponent<Image>().color = borderColor;
             BoxText(ribbonRect, "RibbonText", ribbon, 13, BgScreen);
 
             // Name
             BodyText(card.transform, "Name", name, 36, borderColor, true,
-                new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(22, -50), new Vector2(-22, -22));
+                new Vector2(0f, 0.56f), new Vector2(1f, 0.88f),
+                new Vector2(20, 0), new Vector2(-20, 0),
+                TextAnchor.MiddleCenter);
 
             // Roster
-            BodyText(card.transform, "Roster", roster, 24, TextSoft, false,
-                new Vector2(0f, 0.18f), new Vector2(1f, 0.65f),
-                new Vector2(22, 0), new Vector2(-22, 0));
+            BodyText(card.transform, "Roster", roster, 20, TextSoft, false,
+                new Vector2(0f, 0.20f), new Vector2(1f, 0.58f),
+                new Vector2(18, 0), new Vector2(-18, 0),
+                TextAnchor.MiddleCenter);
 
             // ReadyTag
             BodyText(card.transform, "Ready", readyText, 13, readyColor, true,
-                new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(-150, 12), new Vector2(-14, 30));
+                new Vector2(0f, 0f), new Vector2(1f, 0.20f),
+                new Vector2(20, 2), new Vector2(-20, -2),
+                TextAnchor.MiddleRight);
         }
 
         private static void VerChip(RectTransform parent, string text, Color color, bool alive)
         {
             var chip = NewRect("Chip_" + text, parent.transform,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            chip.gameObject.AddComponent<LayoutElement>().preferredWidth = 220;
-            chip.gameObject.AddComponent<Image>().color = BgScreen;
-            OutlineBorder(chip.gameObject, alive ? Green : Line, 2f);
+            var layout = chip.gameObject.AddComponent<LayoutElement>();
+            layout.preferredWidth = 240;
+            layout.minWidth = 190;
+            layout.preferredHeight = 34;
+            layout.minHeight = 34;
+            chip.gameObject.AddComponent<Image>().color = BgDarker;
+            OutlineBorder(chip.gameObject, color, 2f);
             BoxText(chip, "Text", text, 14, color);
         }
 
@@ -182,7 +204,7 @@ namespace BossRaid.UIDesign.Editor
             TopText(root.transform, "Small", "▼ BONUS LOTTERY ▼", 16, TextMuted, false,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0, -50), new Vector2(700, 26));
-            TitleText(root.transform, "Ttl", "BURGER LOCKDOWN", 70, Yellow, true,
+            TitleText(root.transform, "Ttl", "BURGER LOCKDOWN", 70, Chrome, true,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0, -110), new Vector2(1500, 90));
             TopText(root.transform, "Sub", "▶ EIGHT MAPS CARRY VIEWER BURGER STAKES ◀", 30, Cyan, true,
@@ -193,7 +215,7 @@ namespace BossRaid.UIDesign.Editor
             var reel = Panel("ReelFrame", root.transform,
                 new Vector2(0, 0), new Vector2(1, 1),
                 new Vector2(60, 130), new Vector2(-60, -230),
-                BgDarker, Magenta);
+                BgDarker, Line);
 
             CapTab(reel, "CapL", "BONUS LOTTERY", Magenta, true);
             CapTab(reel, "CapR", "8 / 24 PICKED", Yellow, false);
@@ -224,7 +246,7 @@ namespace BossRaid.UIDesign.Editor
                     Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 modeTag.gameObject.AddComponent<LayoutElement>().preferredWidth = 88;
                 modeTag.gameObject.AddComponent<Image>().color = BgCard;
-                OutlineBorder(modeTag.gameObject, Cyan, 2f);
+                OutlineBorder(modeTag.gameObject, Line, 2f);
                 BodyText(modeTag.transform, "Lbl", modes[r], 36, Cyan, true,
                     Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                     TextAnchor.MiddleCenter);
@@ -235,42 +257,39 @@ namespace BossRaid.UIDesign.Editor
                     bool burger = burgerMap[r, c] == 1;
                     var cell = Panel("Cell_" + modes[r] + (c + 1), row.transform,
                         Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
-                        BgCard, burger ? Yellow : Line);
+                        BgCard, Line);
                     cell.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
 
                     BodyText(cell.transform, "Id", modes[r] + (c + 1), 17,
                         burger ? Yellow : Cyan, true,
                         new Vector2(0, 1), new Vector2(1, 1),
-                        new Vector2(14, -30), new Vector2(-14, -8),
-                        TextAnchor.UpperLeft);
+                        new Vector2(14, -32), new Vector2(-14, -8),
+                        TextAnchor.UpperCenter);
 
                     BodyText(cell.transform, "Title", "Initial", 26, Text, false,
-                        new Vector2(0, 0.32f), new Vector2(1, 0.72f),
+                        new Vector2(0, 0.34f), new Vector2(1, 0.70f),
                         new Vector2(14, 0), new Vector2(-14, 0),
-                        TextAnchor.MiddleLeft);
+                        TextAnchor.MiddleCenter);
 
                     BodyText(cell.transform, "Meta", "CHASER01", 22, TextMuted, false,
-                        new Vector2(0, 0), new Vector2(1, 0.32f),
-                        new Vector2(14, 6), new Vector2(-14, 0),
-                        TextAnchor.LowerLeft);
+                        new Vector2(0, 0.04f), new Vector2(1, 0.32f),
+                        new Vector2(14, 0), new Vector2(-14, 0),
+                        TextAnchor.MiddleCenter);
 
-                    if (burger)
-                    {
-                        // 🍔 (이모지 - 폰트에 따라 보일 수도 안 보일 수도 있음)
-                        BodyText(cell.transform, "Burger", "🍔", 28, Yellow, true,
-                            new Vector2(1, 1), new Vector2(1, 1),
-                            new Vector2(-40, -38), new Vector2(-6, -6),
-                            TextAnchor.MiddleCenter);
+                    var burgerMark = BodyText(cell.transform, "Burger", "★", 28, Yellow, true,
+                        new Vector2(1, 1), new Vector2(1, 1),
+                        new Vector2(-40, -38), new Vector2(-6, -6),
+                        TextAnchor.MiddleCenter);
+                    burgerMark.gameObject.SetActive(burger);
 
-                        // JACKPOT stamp
-                        var stamp = NewRect("Stamp", cell.transform,
-                            new Vector2(1, 0), new Vector2(1, 0),
-                            new Vector2(-100, 8), new Vector2(-12, 30));
-                        stamp.gameObject.AddComponent<Image>().color = Yellow;
-                        BodyText(stamp.transform, "T", "JACKPOT", 13, BgScreen, false,
-                            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
-                            TextAnchor.MiddleCenter);
-                    }
+                    var stamp = NewRect("Stamp", cell.transform,
+                        new Vector2(1, 0), new Vector2(1, 0),
+                        new Vector2(-100, 8), new Vector2(-12, 30));
+                    stamp.gameObject.AddComponent<Image>().color = Yellow;
+                    BodyText(stamp.transform, "T", "JACKPOT", 13, BgScreen, false,
+                        Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                        TextAnchor.MiddleCenter);
+                    stamp.gameObject.SetActive(burger);
                 }
             }
 
@@ -295,7 +314,7 @@ namespace BossRaid.UIDesign.Editor
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0, -80), new Vector2(900, 30));
 
-            TitleText(root.transform, "Ttl", "SELECT STAGE", 96, Magenta, true,
+            TitleText(root.transform, "Ttl", "SELECT STAGE", 96, Chrome, true,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0, -180), new Vector2(1500, 120));
 
@@ -328,16 +347,16 @@ namespace BossRaid.UIDesign.Editor
         {
             var card = Panel("Diff_" + name, parent.transform,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
-                BgCard, selected ? accent : Line);
+                BgCard, Line);
             card.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
 
             // selected 카드는 살짝 위로 (anchoredPosition은 LayoutGroup이 덮으므로 padding으로 처리하기엔 복잡)
             // 대신 selected만 ribbon 색깔과 두꺼운 outline으로 강조
 
-            // Ribbon (상단 중앙)
+            // Ribbon (상단 중앙) — 카드 보더에 절반 걸치도록
             var rib = NewRect("Ribbon", card.transform,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(-130, -2), new Vector2(130, 30));
+                new Vector2(-130, -14), new Vector2(130, 18));
             rib.gameObject.AddComponent<Image>().color = accent;
             BoxText(rib, "Text", ribbon, 14, name == "HARD" ? Text : BgScreen);
 
@@ -353,42 +372,42 @@ namespace BossRaid.UIDesign.Editor
             }
 
             // Icon
-            BodyText(card.transform, "Icon", icon, 80, accent, true,
-                new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(0, -210), new Vector2(0, -80),
+            BodyText(card.transform, "Icon", icon, 58, accent, true,
+                new Vector2(0, 0.66f), new Vector2(1, 0.86f),
+                new Vector2(24, 0), new Vector2(-24, 0),
                 TextAnchor.MiddleCenter);
 
             // Name
-            BodyText(card.transform, "Name", name, 64, accent, true,
-                new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(0, -300), new Vector2(0, -210),
+            BodyText(card.transform, "Name", name, 52, accent, true,
+                new Vector2(0, 0.48f), new Vector2(1, 0.66f),
+                new Vector2(24, 0), new Vector2(-24, 0),
                 TextAnchor.MiddleCenter);
 
             // Divider
             var divider = NewRect("Divider", card.transform,
-                new Vector2(0, 0), new Vector2(1, 0),
-                new Vector2(32, 220), new Vector2(-32, 222));
+                new Vector2(0, 0.44f), new Vector2(1, 0.44f),
+                new Vector2(32, -1), new Vector2(-32, 1));
             divider.gameObject.AddComponent<Image>().color = Line;
 
             // HP row
             BodyText(card.transform, "HpLbl", "BOSS HP", 14, TextMuted, false,
-                new Vector2(0, 0), new Vector2(0.5f, 0),
-                new Vector2(32, 160), new Vector2(0, 200),
-                TextAnchor.MiddleLeft);
-            BodyText(card.transform, "HpVal", hp, 48, selected ? accent : Text, true,
-                new Vector2(0.5f, 0), new Vector2(1, 0),
-                new Vector2(0, 150), new Vector2(-32, 210),
-                TextAnchor.MiddleRight);
+                new Vector2(0, 0.34f), new Vector2(1, 0.42f),
+                new Vector2(24, 0), new Vector2(-24, 0),
+                TextAnchor.MiddleCenter);
+            BodyText(card.transform, "HpVal", hp, 40, selected ? accent : Text, true,
+                new Vector2(0, 0.24f), new Vector2(1, 0.36f),
+                new Vector2(24, 0), new Vector2(-24, 0),
+                TextAnchor.MiddleCenter);
 
             // PRIZE row
             BodyText(card.transform, "PrLbl", "PRIZE", 14, TextMuted, false,
-                new Vector2(0, 0), new Vector2(0.5f, 0),
-                new Vector2(32, 90), new Vector2(0, 130),
-                TextAnchor.MiddleLeft);
-            BodyText(card.transform, "PrVal", prize, 48, Cyan, true,
-                new Vector2(0.5f, 0), new Vector2(1, 0),
-                new Vector2(0, 80), new Vector2(-32, 140),
-                TextAnchor.MiddleRight);
+                new Vector2(0, 0.12f), new Vector2(1, 0.20f),
+                new Vector2(24, 0), new Vector2(-24, 0),
+                TextAnchor.MiddleCenter);
+            BodyText(card.transform, "PrVal", prize, 40, Cyan, true,
+                new Vector2(0, 0.02f), new Vector2(1, 0.15f),
+                new Vector2(24, 0), new Vector2(-24, 0),
+                TextAnchor.MiddleCenter);
         }
 
         // =============================================================================
@@ -402,21 +421,21 @@ namespace BossRaid.UIDesign.Editor
                 "▶ TEAM 삼랄부마스터 · BOSS NORMAL · STAGE 03/08 ◀", 16, TextMuted, false,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0, -80), new Vector2(1200, 30));
-            TitleText(root.transform, "Ttl", "MODE LOTTERY", 96, Magenta, true,
+            TitleText(root.transform, "Ttl", "MODE LOTTERY", 96, Chrome, true,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0, -190), new Vector2(1600, 120));
 
-            // pointer up (위 노란 삼각형)
-            var pUp = NewRect("PointerUp", root.transform,
+            // pointer up — Image로 삼각형은 못 그리니 유니코드 ▼ 텍스트로 대체
+            BodyText(root.transform, "PointerUp", "▼", 40, Yellow, true,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(-22, -295 - 28), new Vector2(22, -295));
-            pUp.gameObject.AddComponent<Image>().color = Yellow;
+                new Vector2(-30, -310), new Vector2(30, -270),
+                TextAnchor.MiddleCenter);
 
             // ReelFrame
             var reel = Panel("ReelFrame", root.transform,
                 new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(80, -860), new Vector2(-80, -320),
-                BgDarker, Cyan);
+                BgDarker, Line);
 
             var inner = NewRect("Inner", reel.transform,
                 Vector2.zero, Vector2.one,
@@ -428,11 +447,11 @@ namespace BossRaid.UIDesign.Editor
             ModeTile(inner, "HR", "HARD ROCK",   true);
             ModeTile(inner, "DT", "DOUBLE TIME", false);
 
-            // pointer down
-            var pDn = NewRect("PointerDown", root.transform,
+            // pointer down — 유니코드 ▲ 텍스트
+            BodyText(root.transform, "PointerDown", "▲", 40, Yellow, true,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(-22, -864), new Vector2(22, -836));
-            pDn.gameObject.AddComponent<Image>().color = Yellow;
+                new Vector2(-30, -880), new Vector2(30, -840),
+                TextAnchor.MiddleCenter);
 
             // Footer
             TopText(root.transform, "Footer",
@@ -455,7 +474,7 @@ namespace BossRaid.UIDesign.Editor
             {
                 var tag = NewRect("Spin", tile.transform,
                     new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                    new Vector2(-150, -2), new Vector2(150, 30));
+                    new Vector2(-150, -10), new Vector2(150, 16));
                 tag.gameObject.AddComponent<Image>().color = Magenta;
                 BoxText(tag, "T", "▶ NOW SPINNING ◀", 14, BgScreen);
             }
@@ -489,13 +508,20 @@ namespace BossRaid.UIDesign.Editor
             // 타이틀: "HR" + "MAP LOTTERY" 좌우 분리
             var titleRow = CenteredRect("TitleRow", root.transform,
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0, -150), new Vector2(1500, 100));
-            HLayoutAuto(titleRow.gameObject, 16, false, true);
+                new Vector2(0, -145), new Vector2(1280, 104));
             BodyText(titleRow.transform, "HR", "HR", 76, Magenta, true,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
-                TextAnchor.MiddleCenter);
-            BodyText(titleRow.transform, "Lottery", "MAP LOTTERY", 76, Magenta, true,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                new Vector2(0, 0), new Vector2(0.35f, 1),
+                new Vector2(0, 0), new Vector2(-24, 0),
+                TextAnchor.MiddleRight);
+            BodyText(titleRow.transform, "Lottery", "MAP LOTTERY", 76, Chrome, true,
+                new Vector2(0.35f, 0), new Vector2(1, 1),
+                new Vector2(24, 0), Vector2.zero,
+                TextAnchor.MiddleLeft);
+            BodyText(root.transform, "SelectedInfo",
+                "INITIAL  /  EVEN NOW, I'M SEARCHING FOR YOU.  /  ARTIST POPPIN'PARTY  /  MAPPER CHASER01",
+                20, TextSoft, false,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(-760, -232), new Vector2(760, -198),
                 TextAnchor.MiddleCenter);
 
             // 3x2 grid
@@ -528,52 +554,51 @@ namespace BossRaid.UIDesign.Editor
 
         private static void MapCell2(RectTransform parent, string id, bool burger, bool active, bool played)
         {
-            Color border = active ? Magenta : (burger ? Yellow : Line);
             Color bg = active ? BgPanel : BgCard;
 
             var cell = Panel("Cell_" + id, parent.transform,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, bg, border);
+                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, bg, active ? Magenta : Line);
 
             // Head row (id-tag + mode-tag)
             var idTag = NewRect("IdTag", cell.transform,
                 new Vector2(0, 1), new Vector2(0, 1),
                 new Vector2(22, -50), new Vector2(100, -22));
             idTag.gameObject.AddComponent<Image>().color = BgDarker;
-            OutlineBorder(idTag.gameObject, burger ? Yellow : Cyan, 2f);
+            OutlineBorder(idTag.gameObject, Line, 2f);
             BoxText(idTag, "T", id, 16, burger ? Yellow : Cyan);
 
             var modeTag = NewRect("ModeTag", cell.transform,
                 new Vector2(0, 1), new Vector2(0, 1),
                 new Vector2(110, -50), new Vector2(180, -22));
             modeTag.gameObject.AddComponent<Image>().color = BgDarker;
-            OutlineBorder(modeTag.gameObject, Yellow, 2f);
+            OutlineBorder(modeTag.gameObject, Line, 2f);
             BoxText(modeTag, "T", "HR", 16, Yellow);
 
             // Title
             BodyText(cell.transform, "Title", "Initial", 36,
                 active ? Magenta : Text, true,
-                new Vector2(0, 0.42f), new Vector2(1, 0.66f),
+                new Vector2(0, 0.50f), new Vector2(1, 0.72f),
                 new Vector2(28, 0), new Vector2(-28, 0),
-                TextAnchor.MiddleLeft);
+                TextAnchor.MiddleCenter);
 
             // Diff line
             BodyText(cell.transform, "Diff", "EVEN NOW, I'M SEARCHING FOR YOU.", 26,
                 Cyan, true,
-                new Vector2(0, 0.26f), new Vector2(1, 0.42f),
+                new Vector2(0, 0.32f), new Vector2(1, 0.50f),
                 new Vector2(28, 0), new Vector2(-28, 0),
-                TextAnchor.MiddleLeft);
+                TextAnchor.MiddleCenter);
 
             // Creator
             BodyText(cell.transform, "Creator", "BY  POPPIN'PARTY · CHASER01", 22,
                 TextMuted, false,
-                new Vector2(0, 0), new Vector2(1, 0.22f),
-                new Vector2(28, 10), new Vector2(-28, 0),
-                TextAnchor.MiddleLeft);
+                new Vector2(0, 0.08f), new Vector2(1, 0.26f),
+                new Vector2(28, 0), new Vector2(-28, 0),
+                TextAnchor.MiddleCenter);
 
-            // 🍔 emoji (burger only)
+            // ★ 마크 (burger 표식 — Legacy Text 이모지 미지원으로 대체)
             if (burger)
             {
-                BodyText(cell.transform, "Burger", "🍔", 32, Yellow, true,
+                BodyText(cell.transform, "Burger", "★", 32, Yellow, true,
                     new Vector2(1, 1), new Vector2(1, 1),
                     new Vector2(-50, -50), new Vector2(-14, -14),
                     TextAnchor.MiddleCenter);
@@ -584,7 +609,7 @@ namespace BossRaid.UIDesign.Editor
             {
                 var tag = NewRect("Spin", cell.transform,
                     new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                    new Vector2(-150, -2), new Vector2(150, 30));
+                    new Vector2(-150, -10), new Vector2(150, 16));
                 tag.gameObject.AddComponent<Image>().color = Magenta;
                 BoxText(tag, "T", "▶ NOW SPINNING ◀", 14, BgScreen);
             }
@@ -618,16 +643,16 @@ namespace BossRaid.UIDesign.Editor
             var banner = Panel("MapBanner", root.transform,
                 new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(60, -420), new Vector2(-60, -200),
-                BgPanel, Magenta);
+                BgPanel, Line);
 
             CapTab(banner, "Cap", "STAGE 03 / 08 ▶", Cyan, true);
 
-            // Burger stamp (right top)
+            // Burger stamp (right top) — 보더에 반쯤 걸치게
             var stamp = NewRect("BurgerStamp", banner.transform,
                 new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-260, -2), new Vector2(-60, 30));
+                new Vector2(-260, -10), new Vector2(-60, 18));
             stamp.gameObject.AddComponent<Image>().color = Yellow;
-            BoxText(stamp, "T", "🍔 JACKPOT TARGET", 15, BgScreen);
+            BoxText(stamp, "T", "★ JACKPOT TARGET", 15, BgScreen);
 
             // Left side
             BodyText(banner.transform, "Eyebrow", "▼ SELECTED MAP ▼", 15, Cyan, true,
@@ -668,7 +693,7 @@ namespace BossRaid.UIDesign.Editor
             var side = Panel("SidePanel", root.transform,
                 new Vector2(1, 1), new Vector2(1, 1),
                 new Vector2(-440, -1000), new Vector2(-60, -460),
-                BgPanel, Cyan);
+                BgPanel, Line);
 
             BodyText(side.transform, "H3", "▶ ROOM CHAT", 16, Cyan, true,
                 new Vector2(0, 1), new Vector2(1, 1),
@@ -683,7 +708,7 @@ namespace BossRaid.UIDesign.Editor
             var chat = Panel("Chat", side.transform,
                 Vector2.zero, Vector2.one,
                 new Vector2(22, 18), new Vector2(-22, -70),
-                BgDarker, Magenta);
+                BgDarker, Line);
             var lines = new (string who, string msg, Color color)[]
             {
                 ("BANCHO",    "BEATMAP CHANGED TO INITIAL [HR]", Yellow),
@@ -697,12 +722,12 @@ namespace BossRaid.UIDesign.Editor
                 float top = 0.96f - i * 0.18f;
                 BodyText(chat.transform, "Who" + i, lines[i].who, 14,
                     lines[i].color, true,
-                    new Vector2(0, top - 0.18f), new Vector2(0.30f, top),
-                    new Vector2(14, 0), new Vector2(0, 0),
+                    new Vector2(0, top - 0.18f), new Vector2(0.34f, top),
+                    new Vector2(16, 0), new Vector2(0, 0),
                     TextAnchor.MiddleLeft);
                 BodyText(chat.transform, "Msg" + i, lines[i].msg, 22, TextSoft, false,
-                    new Vector2(0.30f, top - 0.18f), new Vector2(1, top),
-                    new Vector2(8, 0), new Vector2(-14, 0),
+                    new Vector2(0.34f, top - 0.18f), new Vector2(1, top),
+                    new Vector2(6, 0), new Vector2(-16, 0),
                     TextAnchor.MiddleLeft);
             }
 
@@ -729,14 +754,14 @@ namespace BossRaid.UIDesign.Editor
         {
             var slot = Panel("Slot_" + slotTag, parent.transform,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
-                BgDarker, ready ? Green : Line);
+                BgDarker, Line);
             slot.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
 
             var tag = NewRect("Tag", slot.transform,
                 new Vector2(0, 1), new Vector2(0, 1),
                 new Vector2(16, -42), new Vector2(220, -14));
             tag.gameObject.AddComponent<Image>().color = BgScreen;
-            OutlineBorder(tag.gameObject, Cyan, 2f);
+            OutlineBorder(tag.gameObject, Line, 2f);
             BoxText(tag, "T", slotTag, 14, Cyan);
 
             BodyText(slot.transform, "Ph", placeholder, 18, TextFaint, false,
@@ -766,7 +791,7 @@ namespace BossRaid.UIDesign.Editor
             var bossArea = Panel("BossBarArea", root.transform,
                 new Vector2(0, 0), new Vector2(1, 0),
                 new Vector2(60, 30), new Vector2(-60, 250),
-                BgPanel, Magenta);
+                BgPanel, Line);
 
             CapTab(bossArea, "CapL", "BOSS BATTLE ▶", Magenta, true);
             CapTab(bossArea, "CapR", "STAGE 03",     Cyan,    false);
@@ -792,7 +817,7 @@ namespace BossRaid.UIDesign.Editor
             var track = Panel("Track", bossArea.transform,
                 new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(30, -154), new Vector2(-30, -90),
-                BgDarker, Cyan);
+                BgDarker, Line);
 
             var fill = NewRect("Fill", track.transform,
                 new Vector2(0, 0), new Vector2(0.64f, 1),
@@ -831,7 +856,7 @@ namespace BossRaid.UIDesign.Editor
                 new Vector2(0, 1), new Vector2(0, 1),
                 new Vector2(16, -42), new Vector2(80, -14));
             tag.gameObject.AddComponent<Image>().color = BgScreen;
-            OutlineBorder(tag.gameObject, Cyan, 2f);
+            OutlineBorder(tag.gameObject, Line, 2f);
             BoxText(tag, "T", p, 14, Cyan);
 
             // LIVE 빨강 태그
@@ -864,9 +889,9 @@ namespace BossRaid.UIDesign.Editor
                 Vector2.zero, new Vector2(4, 0));
             accent.gameObject.AddComponent<Image>().color = Magenta;
 
-            BodyText(tile.transform, "Idx", idx, 14, Magenta, true,
-                new Vector2(0, 0), new Vector2(0, 1),
-                new Vector2(18, 0), new Vector2(60, 0),
+            BodyText(tile.transform, "Idx", idx, 18, Cyan, true,
+                new Vector2(0, 0), new Vector2(0.24f, 1),
+                new Vector2(18, 0), new Vector2(-4, 0),
                 TextAnchor.MiddleCenter);
 
             BodyText(tile.transform, "Name", name, 24, Text, false,
@@ -874,9 +899,9 @@ namespace BossRaid.UIDesign.Editor
                 new Vector2(68, 0), new Vector2(0, 0),
                 TextAnchor.MiddleLeft);
 
-            BodyText(tile.transform, "Score", "-- TOSU --", 18, TextFaint, false,
-                new Vector2(0.65f, 0), new Vector2(1, 1),
-                new Vector2(0, 0), new Vector2(-18, 0),
+            BodyText(tile.transform, "Score", "000,000", 24, Yellow, true,
+                new Vector2(0.24f, 0), new Vector2(1, 1),
+                new Vector2(8, 0), new Vector2(-20, 0),
                 TextAnchor.MiddleRight);
         }
 
@@ -935,7 +960,7 @@ namespace BossRaid.UIDesign.Editor
             var bossBar = Panel("BossBar", root.transform,
                 new Vector2(0, 0), new Vector2(1, 0),
                 new Vector2(200, 320), new Vector2(-200, 410),
-                BgDarker, Cyan);
+                BgDarker, Line);
 
             var bfill = NewRect("Fill", bossBar.transform,
                 new Vector2(0, 0), new Vector2(clear ? 1f : 0.66f, 1),
@@ -968,7 +993,7 @@ namespace BossRaid.UIDesign.Editor
         {
             var card = Panel("Stat_" + lbl, parent.transform,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
-                BgCard, accent);
+                BgCard, Line);
             card.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
 
             BodyText(card.transform, "Lbl", lbl, 15, TextMuted, false,
@@ -999,9 +1024,9 @@ namespace BossRaid.UIDesign.Editor
             var l = Panel("Hud_L", root,
                 new Vector2(0, 1), new Vector2(0, 1),
                 new Vector2(24, -148), new Vector2(564, -24),
-                BgPanel, Cyan);
+                BgPanel, Line);
             CapTab(l, "Cap", "EVENT", Cyan, true);
-            BodyText(l.transform, "Event", "BOSS RAID", 36, Magenta, true,
+            BodyText(l.transform, "Event", "BOSS RAID", 36, Chrome, true,
                 new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(20, -50), new Vector2(-20, -16),
                 TextAnchor.MiddleLeft);
@@ -1023,7 +1048,7 @@ namespace BossRaid.UIDesign.Editor
             var c = Panel("Hud_C", root,
                 new Vector2(0, 1), new Vector2(1, 1),
                 new Vector2(580, -148), new Vector2(-596, -24),
-                BgPanel, Magenta);
+                BgPanel, Line);
             CapTab(c, "Cap", "▼ STATUS ▼", Magenta, true);
             BodyText(c.transform, "Eyebrow", "NOW SHOWING", 14, TextFaint, false,
                 new Vector2(0, 1), new Vector2(1, 1),
@@ -1042,7 +1067,7 @@ namespace BossRaid.UIDesign.Editor
             var r = Panel("Hud_R", root,
                 new Vector2(1, 1), new Vector2(1, 1),
                 new Vector2(-580, -148), new Vector2(-24, -24),
-                BgPanel, Yellow);
+                BgPanel, Line);
             CapTab(r, "Cap", "SCOREBOARD", Yellow, true);
             var grid = NewRect("Grid", r.transform,
                 Vector2.zero, Vector2.one,
@@ -1130,15 +1155,34 @@ namespace BossRaid.UIDesign.Editor
         }
 
         /// <summary>
-        /// 패널 보더(2px 균일). Outline 컴포넌트로 4방향 외곽선을 만든다.
-        /// 더 두꺼운 시각효과가 필요하면 distance를 키운다.
+        /// 패널 보더(균일 두께, 기본 2px). 4방향 Image 자식으로 만들어 코너까지 깔끔.
+        /// (Outline 컴포넌트는 4-오프셋 사본이라 흐릿하고 코너가 두꺼워서 안 씀)
         /// </summary>
-        private static void OutlineBorder(GameObject go, Color color, float distance)
+        private static void OutlineBorder(GameObject go, Color color, float thickness)
         {
-            var ol = go.AddComponent<Outline>();
-            ol.effectColor = color;
-            ol.effectDistance = new Vector2(distance, -distance);
-            ol.useGraphicAlpha = true;
+            int th = Mathf.Max(1, Mathf.RoundToInt(thickness));
+            var t = go.transform;
+            // Top    : 상단 가로
+            BorderSide(t, "B_Top",    new Vector2(0, 1), new Vector2(1, 1),
+                       new Vector2(0,  -th), new Vector2(0, 0), color);
+            // Bottom : 하단 가로
+            BorderSide(t, "B_Bottom", new Vector2(0, 0), new Vector2(1, 0),
+                       new Vector2(0, 0),    new Vector2(0, th), color);
+            // Left   : 좌측 세로 (위/아래 보더와 안 겹치게 th만큼 깎음)
+            BorderSide(t, "B_Left",   new Vector2(0, 0), new Vector2(0, 1),
+                       new Vector2(0, th),   new Vector2(th, -th), color);
+            // Right  : 우측 세로
+            BorderSide(t, "B_Right",  new Vector2(1, 0), new Vector2(1, 1),
+                       new Vector2(-th, th), new Vector2(0, -th), color);
+        }
+
+        private static void BorderSide(Transform parent, string name,
+            Vector2 aMin, Vector2 aMax, Vector2 oMin, Vector2 oMax, Color color)
+        {
+            var rt = NewRect(name, parent, aMin, aMax, oMin, oMax);
+            var img = rt.gameObject.AddComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
         }
 
         /// <summary>
@@ -1153,15 +1197,15 @@ namespace BossRaid.UIDesign.Editor
             var t = rt.gameObject.AddComponent<Text>();
             t.text = str;
             t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            t.fontSize = size;
+            t.fontSize = Mathf.Max(size, MinimumReadableFontSize);
             t.fontStyle = FontStyle.Bold;
             t.alignment = TextAnchor.MiddleCenter;
             t.color = color;
+            // 타이틀은 정확히 지정한 크기로 렌더 — bestFit/Overflow 충돌 회피
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             t.verticalOverflow = VerticalWrapMode.Overflow;
-            t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = Mathf.Max(10, size / 3);
-            t.resizeTextMaxSize = size;
+            t.resizeTextForBestFit = false;
+            t.raycastTarget = false;
             if (glow) AddGlow(rt.gameObject, color);
             return t;
         }
@@ -1199,15 +1243,15 @@ namespace BossRaid.UIDesign.Editor
             var t = rt.gameObject.AddComponent<Text>();
             t.text = str;
             t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            t.fontSize = size;
+            t.fontSize = Mathf.Max(size, MinimumReadableFontSize);
             t.fontStyle = FontStyle.Bold;
             t.alignment = anchor;
             t.color = color;
+            // 본문은 길어지면 wrap, 박스 넘으면 truncate. bestFit은 불안정해서 비활성.
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Truncate;
-            t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = Mathf.Max(8, size / 3);
-            t.resizeTextMaxSize = size;
+            t.resizeTextForBestFit = false;
+            t.raycastTarget = false;
             if (glow) AddGlow(rt.gameObject, color);
             return t;
         }
@@ -1228,34 +1272,86 @@ namespace BossRaid.UIDesign.Editor
             t.color = color;
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             t.verticalOverflow = VerticalWrapMode.Overflow;
+            t.resizeTextForBestFit = false;
+            t.raycastTarget = false;
             return t;
         }
 
         /// <summary>
-        /// 패널 좌상단에 살짝 걸치는 라벨 캡(v3의 `.cap`).
+        /// 패널 보더에 반쯤 걸치는 라벨 캡(v3의 `.cap`). 글자 폭 추정으로 너비 산출.
         /// </summary>
         private static void CapTab(RectTransform parent, string name, string str, Color color, bool left)
         {
+            // 13px 폰트 + 글자 폭 추정(영문/숫자/심볼 기준 ~8px) + 좌우 패딩 24
+            int approxWidth = Mathf.Max(60, str.Length * 9 + 24);
+            // y: -10 = 패널 안쪽 10px, +14 = 패널 위 14px → 24px 높이로 보더에 반쯤 걸침
             var cap = NewRect(name, parent.transform,
                 left ? new Vector2(0, 1) : new Vector2(1, 1),
                 left ? new Vector2(0, 1) : new Vector2(1, 1),
-                left ? new Vector2(16, -2) : new Vector2(-(str.Length * 10 + 24), -2),
-                left ? new Vector2(16 + str.Length * 10 + 24, 18) : new Vector2(-16, 18));
+                left ? new Vector2(16, -10)             : new Vector2(-approxWidth - 16, -10),
+                left ? new Vector2(16 + approxWidth, 14): new Vector2(-16, 14));
             cap.gameObject.AddComponent<Image>().color = BgScreen;
             BoxText(cap, "T", str, 13, color);
         }
 
         /// <summary>
-        /// 텍스트 글로우: 동일색 Outline 1단(부드러운 효과 흉내).
+        /// 텍스트 글로우 + 가독성 보강. v3의 text-shadow 효과를 근사한다.
+        /// - Shadow(검정): 어두운 배경 위에서 텍스트 발색 유지
+        /// - Outline 안쪽 동일색(짙음): 텍스트 글자 본체 강조 = "테두리"처럼 보임
+        /// - Outline 바깥쪽 동일색(옅음, 두꺼움): 부드러운 헤일로 = "발광"처럼 보임
+        /// (Outline 2단 + Shadow 1단으로 v3 .neon-text-* 룩 근사)
         /// </summary>
         private static void AddGlow(GameObject go, Color color)
         {
-            var glow = go.AddComponent<Outline>();
-            var c = color;
-            c.a = 0.55f;
-            glow.effectColor = c;
-            glow.effectDistance = new Vector2(1.5f, -1.5f);
-            glow.useGraphicAlpha = true;
+            // v3 CSS에서 크롬(yellow→magenta 그라데) 텍스트의 text-shadow 색은 magenta로
+            // 별도 지정되어 있어 — 단색 오렌지에 magenta 글로우를 입혀야 그라데 느낌이 산다.
+            bool isChrome = ColorMatches(color, Chrome);
+            Color glowColor = isChrome ? Magenta : color;
+
+            // BaseMeshEffect는 컴포넌트 순서대로 mesh를 변형하며, 나중에 추가된 효과의 사본이
+            // 더 뒤(낮은 인덱스 = 먼저 그려짐 = 뒤쪽)에 깔린다. 따라서:
+            //   1) 드롭섀도(가독성용)
+            //   2) Inner Outline (글자에 또렷한 테두리, 좁은 오프셋)
+            //   3) Outer Outline (넓은 헤일로 = 부드러운 발광, 마지막에 추가해 뒤에 깔림)
+
+            // 1) 검정 드롭섀도
+            var drop = go.AddComponent<Shadow>();
+            drop.effectColor = new Color(0f, 0f, 0f, TextShadowAlpha);
+            drop.effectDistance = new Vector2(TextShadowDistance, -TextShadowDistance);
+            drop.useGraphicAlpha = true;
+
+            // 2) 안쪽 외곽선 — 짙은 동일색
+            var inner = go.AddComponent<Outline>();
+            var ic = glowColor; ic.a = TextGlowInnerAlpha;
+            inner.effectColor = ic;
+            inner.effectDistance = new Vector2(TextGlowInnerDistance, -TextGlowInnerDistance);
+            inner.useGraphicAlpha = true;
+
+            // 3) 바깥쪽 헤일로 — 옅은 동일색, 마지막
+            var outer = go.AddComponent<Outline>();
+            var oc = glowColor; oc.a = TextGlowOuterAlpha;
+            outer.effectColor = oc;
+            outer.effectDistance = new Vector2(TextGlowOuterDistance, -TextGlowOuterDistance);
+            outer.useGraphicAlpha = true;
+        }
+
+        private static bool ColorMatches(Color a, Color b)
+        {
+            return Mathf.Approximately(a.r, b.r)
+                && Mathf.Approximately(a.g, b.g)
+                && Mathf.Approximately(a.b, b.b);
+        }
+
+        /// <summary>
+        /// (비활성) 텍스트 슈퍼샘플링.
+        /// 문제: 프리팹 생성 시점에는 LayoutGroup이 아직 안 돌아서 rt.rect.size를
+        /// 신뢰할 수 없음(부모 전체 크기로 잡힘). 그 결과 rect가 4-10배로 부풀어서
+        /// 레이아웃이 망가짐. 대규모 리팩터링 전까지 no-op 처리.
+        /// 텍스트 선명도는 Canvas 해상도와 폰트 텍스처 크기에 의존.
+        /// </summary>
+        private static void ApplyTextSupersampling(Text text)
+        {
+            // intentionally empty
         }
 
         // =============================================================================
@@ -1263,10 +1359,15 @@ namespace BossRaid.UIDesign.Editor
         // =============================================================================
         private static void HLayoutAuto(GameObject go, float spacing, bool ctrlW, bool ctrlH)
         {
+            HLayoutAuto(go, spacing, ctrlW, ctrlH, ctrlW, ctrlH);
+        }
+
+        private static void HLayoutAuto(GameObject go, float spacing, bool ctrlW, bool ctrlH, bool expandW, bool expandH)
+        {
             var l = go.AddComponent<HorizontalLayoutGroup>();
             l.spacing = spacing;
-            l.childForceExpandWidth = ctrlW;
-            l.childForceExpandHeight = ctrlH;
+            l.childForceExpandWidth = expandW;
+            l.childForceExpandHeight = expandH;
             l.childControlWidth = ctrlW;
             l.childControlHeight = ctrlH;
             l.childAlignment = TextAnchor.MiddleCenter;

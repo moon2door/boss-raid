@@ -70,7 +70,7 @@ namespace BossRaid
                 selectedMode = "Aim",
                 selectedMapId = "aim-1",
                 connectionLabel = "LOCAL PREVIEW",
-                chatStatus = "LOCAL CHAT",
+                chatStatus = "",
                 chatMessages = new List<BossRaidChatMessage>
                 {
                     new BossRaidChatMessage { time = "00:00:00", sender = "Bridge", message = "Room chat preview", kind = "system" }

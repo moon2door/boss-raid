@@ -26,7 +26,7 @@ namespace BossRaid
         public string lastResult = BossRaidResults.None;
         public string resultMessage = "";
         public string connectionLabel = "LOCAL PREVIEW";
-        public string chatStatus = "LOCAL CHAT";
+        public string chatStatus = "";
         public List<BossRaidTeam> teams = new List<BossRaidTeam>();
         public List<BossRaidMap> mapPool = new List<BossRaidMap>();
         public List<string> selectedRoundMapIds = new List<string>();
