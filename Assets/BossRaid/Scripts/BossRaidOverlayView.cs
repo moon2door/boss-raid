@@ -7,18 +7,18 @@ namespace BossRaid
 {
     public sealed class BossRaidOverlayView : MonoBehaviour
     {
-        private static readonly Color Background = new Color(0.020f, 0.000f, 0.094f, 1f);
-        private static readonly Color Panel = new Color(0.141f, 0.039f, 0.267f, 0.92f);
-        private static readonly Color PanelAlt = new Color(0.165f, 0.055f, 0.290f, 0.94f);
-        private static readonly Color Line = new Color(0.435f, 0.227f, 0.659f, 0.72f);
-        private static readonly Color White = new Color(0.973f, 0.933f, 0.973f, 1f);
-        private static readonly Color Muted = new Color(0.541f, 0.435f, 0.769f, 1f);
-        private static readonly Color Red = new Color(1.000f, 0.188f, 0.376f, 1f);
-        private static readonly Color Green = new Color(0.000f, 1.000f, 0.533f, 1f);
-        private static readonly Color Cyan = new Color(0.000f, 0.941f, 1.000f, 1f);
-        private static readonly Color Gold = new Color(1.000f, 0.902f, 0.000f, 1f);
-        private static readonly Color Magenta = new Color(1.000f, 0.169f, 0.839f, 1f);
-        private const string PrefabResourcePath = "BossRaidUi/";
+        private static readonly Color Background = new Color(0.018f, 0.022f, 0.032f, 1f);
+        private static readonly Color Panel = new Color(0.055f, 0.067f, 0.09f, 0.95f);
+        private static readonly Color PanelAlt = new Color(0.085f, 0.095f, 0.125f, 0.96f);
+        private static readonly Color Line = new Color(0.42f, 0.48f, 0.55f, 0.35f);
+        private static readonly Color White = new Color(0.94f, 0.96f, 0.98f, 1f);
+        private static readonly Color Muted = new Color(0.62f, 0.68f, 0.75f, 1f);
+        private static readonly Color Red = new Color(0.95f, 0.18f, 0.22f, 1f);
+        private static readonly Color Green = new Color(0.22f, 0.85f, 0.48f, 1f);
+        private static readonly Color Cyan = new Color(0.25f, 0.78f, 1f, 1f);
+        private static readonly Color Gold = new Color(1f, 0.72f, 0.22f, 1f);
+        private const string PrefabResourcePath = "BossRaidUi_v3/";
+        private const string FallbackPrefabResourcePath = "BossRaidUi/";
 
         [SerializeField] private bool usePrefabUi = true;
 
@@ -42,7 +42,6 @@ namespace BossRaid
             public string statLabel;
             public string statValue;
             public Color statColor;
-            public string playerName;
             public int index;
             public bool selected;
             public bool roundMap;
@@ -207,7 +206,7 @@ namespace BossRaid
             CreateAnchoredText(left, "Team", team != null ? team.name : "No Team", 24, team != null ? team.color : Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.48f), new Vector2(24f, 12f), new Vector2(-18f, -4f));
 
             var center = CreatePanel("HeaderCenter", header, new Vector2(0.35f, 0f), new Vector2(0.65f, 1f), new Vector2(12f, 0f), new Vector2(-12f, 0f), PanelAlt);
-            CreateAnchoredText(center, "Map", selectedMap != null ? selectedMap.title : "Waiting for map", 22, Muted, TextAnchor.MiddleCenter, FontStyle.Normal, new Vector2(0f, 0.68f), Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, -12f));
+            CreateAnchoredText(center, "Map", selectedMap != null ? selectedMap.title : "Waiting for map", 17, Muted, TextAnchor.MiddleCenter, FontStyle.Normal, new Vector2(0f, 0.68f), Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, -12f));
             CreateAnchoredText(center, "Screen", GetScreenLabel(), 34, GetScreenColor(), TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.64f), new Vector2(16f, 8f), new Vector2(-16f, -4f));
 
             var right = CreatePanel("HeaderRight", header, new Vector2(0.65f, 0f), Vector2.one, new Vector2(12f, 0f), Vector2.zero, Panel);
@@ -216,7 +215,7 @@ namespace BossRaid
             BuildStatTile(right, "Round", $"{Mathf.Clamp(state.roundIndex + 1, 1, 8)} / 8", Cyan, 2);
             BuildStatTile(right, "Record", $"{state.clearCount}C {state.failCount}F", state.failCount > 0 ? Red : Green, 3);
 
-            connectionText = CreateAnchoredText(header, "Connection", socketClient != null ? socketClient.StatusLabel : state.connectionLabel, 20, Muted, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.65f, 0f), Vector2.one, new Vector2(12f, 2f), new Vector2(-18f, -104f));
+            connectionText = CreateAnchoredText(header, "Connection", socketClient != null ? socketClient.StatusLabel : state.connectionLabel, 15, Muted, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.65f, 0f), Vector2.one, new Vector2(12f, 2f), new Vector2(-18f, -104f));
         }
 
         private void BuildStandby()
@@ -242,7 +241,7 @@ namespace BossRaid
             }
 
             CreateAnchoredText(content, "Title", "BURGER MAPS LOCKED", 44, Gold, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.90f), Vector2.one, new Vector2(0f, 0f), new Vector2(0f, -18f));
-            CreateAnchoredText(content, "Subtitle", "Eight maps carry viewer burger stakes", 26, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.84f), new Vector2(1f, 0.90f), new Vector2(0f, 0f), new Vector2(0f, -4f));
+            CreateAnchoredText(content, "Subtitle", "Eight maps carry viewer burger stakes", 20, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.84f), new Vector2(1f, 0.90f), new Vector2(0f, 0f), new Vector2(0f, -4f));
             var gridRoot = CreateRect("BurgerGridRoot", content, new Vector2(0f, 0f), new Vector2(1f, 0.80f), new Vector2(32f, 28f), new Vector2(-32f, -10f));
             BuildBurgerMapGrid(gridRoot);
         }
@@ -269,7 +268,7 @@ namespace BossRaid
                 card.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
                 AddOutline(card, isSelected ? Cyan : Line, isSelected ? 4f : 1f);
                 CreateAnchoredText(card, "ModeName", modes[i], 44, isSelected ? Cyan : White, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.26f), new Vector2(1f, 0.78f), new Vector2(16f, 0f), new Vector2(-16f, 0f));
-                CreateAnchoredText(card, "ModeCount", $"{CountModeMaps(modes[i])} maps", 26, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.20f), new Vector2(16f, 8f), new Vector2(-16f, 0f));
+                CreateAnchoredText(card, "ModeCount", $"{CountModeMaps(modes[i])} maps", 20, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.20f), new Vector2(16f, 8f), new Vector2(-16f, 0f));
             }
         }
 
@@ -321,7 +320,7 @@ namespace BossRaid
                 card.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
                 AddOutline(card, isSelected ? color : Line, isSelected ? 4f : 1.2f);
 
-                CreateAnchoredText(card, "Selected", isSelected ? "CURRENT PICK" : "", 24, color, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.82f), Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, -8f));
+                CreateAnchoredText(card, "Selected", isSelected ? "CURRENT PICK" : "", 20, color, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.82f), Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, -8f));
                 CreateAnchoredText(card, "Label", difficulty.label, 48, isSelected ? color : White, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.54f), new Vector2(1f, 0.82f), new Vector2(20f, 0f), new Vector2(-20f, 0f));
                 CreateAnchoredText(card, "Hp", $"HP {FormatNumber(difficulty.bossHp)}", 30, White, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.34f), new Vector2(1f, 0.50f), new Vector2(20f, 0f), new Vector2(-20f, 0f));
                 CreateAnchoredText(card, "Prize", $"+{FormatWon(difficulty.prize)}", 26, Gold, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.18f), new Vector2(1f, 0.32f), new Vector2(20f, 0f), new Vector2(-20f, 0f));
@@ -342,8 +341,8 @@ namespace BossRaid
             BuildSpectatorSlots(content);
 
             var chat = CreatePanel("ReadyChat", content, Vector2.zero, new Vector2(0.30f, 0.22f), Vector2.zero, new Vector2(-14f, 0f), PanelAlt);
-            CreateAnchoredText(chat, "ChatTitle", "INGAME CHAT", 22, Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.68f), Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, -8f));
-            CreateAnchoredText(chat, "ChatBody", BuildChatBody(), 22, White, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.66f), new Vector2(18f, 12f), new Vector2(-18f, 0f));
+            CreateAnchoredText(chat, "ChatTitle", "INGAME CHAT", 18, Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.68f), Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, -8f));
+            CreateAnchoredText(chat, "ChatBody", BuildChatBody(), 18, White, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.66f), new Vector2(18f, 12f), new Vector2(-18f, 0f));
 
             var mapInfo = CreatePanel("ReadyMapInfo", content, new Vector2(0.64f, 0f), new Vector2(1f, 0.28f), new Vector2(14f, 0f), Vector2.zero, PanelAlt);
             BuildMapInfoPanel(mapInfo, "MAP READY");
@@ -360,35 +359,7 @@ namespace BossRaid
             BuildSpectatorSlots(content);
 
             var bottom = CreatePanel("BossBarArea", content, Vector2.zero, new Vector2(1f, 0.26f), Vector2.zero, Vector2.zero, PanelAlt);
-            BuildBossHealthBar(bottom, new Vector2(36f, 110f), new Vector2(-36f, -42f), false);
-            BuildPlayerRow(bottom, new Vector2(36f, 18f), new Vector2(-36f, 96f));
-        }
-
-        private void BuildPlayerRow(RectTransform parent, Vector2 offsetMin, Vector2 offsetMax)
-        {
-            var row = CreateRect("PlayerRow", parent, Vector2.zero, Vector2.one, offsetMin, offsetMax);
-            var layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 16f;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = true;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-
-            var team = state.CurrentTeam;
-            var roster = team != null ? team.players : null;
-
-            for (var i = 0; i < 3; i++)
-            {
-                var displayName = (roster != null && i < roster.Count && !string.IsNullOrEmpty(roster[i])) ? roster[i] : $"Player {i + 1}";
-                var teamColor = team != null ? team.color : Cyan;
-                var tile = CreatePanel($"PlayerTile_{i + 1}", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.03f, 0.036f, 0.052f, 0.92f));
-                tile.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
-                AddOutline(tile, teamColor, 1.5f);
-
-                CreateAnchoredText(tile, "PlayerSlot", $"P{i + 1}", 22, teamColor, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(0.18f, 1f), new Vector2(18f, 0f), new Vector2(-4f, 0f));
-                CreateAnchoredText(tile, "PlayerName", displayName, 30, White, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0.18f, 0f), new Vector2(0.66f, 1f), Vector2.zero, new Vector2(-4f, 0f));
-                CreateAnchoredText(tile, "PlayerScore", "-- TOSU --", 24, Muted, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.66f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-18f, 0f));
-            }
+            BuildBossHealthBar(bottom, new Vector2(36f, 64f), new Vector2(-36f, -42f), false);
         }
 
         private void BuildResult()
@@ -448,8 +419,8 @@ namespace BossRaid
                 var slot = CreatePanel($"SpectatorSlot_{i + 1}", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.012f, 0.015f, 0.022f, 0.78f));
                 slot.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
                 AddOutline(slot, Line, 1.5f);
-                CreateAnchoredText(slot, "Label", $"SPECTATOR {i + 1}", 22, Muted, TextAnchor.UpperLeft, FontStyle.Bold, new Vector2(0f, 0.80f), Vector2.one, new Vector2(18f, -14f), new Vector2(-18f, -12f));
-                CreateAnchoredText(slot, "Guide", "osu! tourney", 26, new Color(Muted.r, Muted.g, Muted.b, 0.42f), TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, 0f));
+                CreateAnchoredText(slot, "Label", $"SPECTATOR {i + 1}", 18, Muted, TextAnchor.UpperLeft, FontStyle.Bold, new Vector2(0f, 0.80f), Vector2.one, new Vector2(18f, -14f), new Vector2(-18f, -12f));
+                CreateAnchoredText(slot, "Guide", "osu! tourney", 22, new Color(Muted.r, Muted.g, Muted.b, 0.42f), TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, 0f));
             }
         }
 
@@ -459,18 +430,18 @@ namespace BossRaid
             var difficulty = state.CurrentDifficulty;
             var mode = map != null && !string.IsNullOrEmpty(map.mode) ? map.mode : state.selectedMode;
 
-            CreateAnchoredText(parent, "Label", label, 24, Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.82f), Vector2.one, new Vector2(22f, 0f), new Vector2(-22f, -8f));
-            CreateAnchoredText(parent, "Title", map != null ? map.title : "No map selected", 38, White, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.64f), new Vector2(1f, 0.84f), new Vector2(22f, 0f), new Vector2(-22f, -2f));
-            CreateAnchoredText(parent, "DifficultyName", map != null ? map.difficultyName : "Difficulty pending", 24, Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.51f), new Vector2(1f, 0.64f), new Vector2(22f, 0f), new Vector2(-22f, 0f));
-            CreateAnchoredText(parent, "Artist", map != null ? map.artist : "Artist pending", 22, Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.39f), new Vector2(0.62f, 0.51f), new Vector2(22f, 0f), new Vector2(-8f, 0f));
-            CreateAnchoredText(parent, "Mapper", map != null ? map.mapper : "Mapper pending", 22, Muted, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.62f, 0.39f), new Vector2(1f, 0.51f), new Vector2(8f, 0f), new Vector2(-22f, 0f));
-            CreateAnchoredText(parent, "Mode", string.IsNullOrEmpty(mode) ? "Mode pending" : $"Mode {mode}", 26, Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.22f), new Vector2(0.48f, 0.36f), new Vector2(22f, 0f), new Vector2(-8f, 0f));
-            CreateAnchoredText(parent, "Difficulty", difficulty != null ? difficulty.label : "Difficulty pending", 26, GetDifficultyColor(state.difficulty), TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0.48f, 0.22f), new Vector2(0.72f, 0.36f), Vector2.zero, Vector2.zero);
-            CreateAnchoredText(parent, "Hp", difficulty != null ? $"HP {FormatNumber(difficulty.bossHp)}" : $"HP {FormatNumber(state.bossHp)}", 26, Gold, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.72f, 0.22f), new Vector2(1f, 0.36f), new Vector2(8f, 0f), new Vector2(-22f, 0f));
+            CreateAnchoredText(parent, "Label", label, 20, Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.82f), Vector2.one, new Vector2(22f, 0f), new Vector2(-22f, -8f));
+            CreateAnchoredText(parent, "Title", map != null ? map.title : "No map selected", 34, White, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.64f), new Vector2(1f, 0.84f), new Vector2(22f, 0f), new Vector2(-22f, -2f));
+            CreateAnchoredText(parent, "DifficultyName", map != null ? map.difficultyName : "Difficulty pending", 20, Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.51f), new Vector2(1f, 0.64f), new Vector2(22f, 0f), new Vector2(-22f, 0f));
+            CreateAnchoredText(parent, "Artist", map != null ? map.artist : "Artist pending", 18, Muted, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.39f), new Vector2(0.62f, 0.51f), new Vector2(22f, 0f), new Vector2(-8f, 0f));
+            CreateAnchoredText(parent, "Mapper", map != null ? map.mapper : "Mapper pending", 18, Muted, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.62f, 0.39f), new Vector2(1f, 0.51f), new Vector2(8f, 0f), new Vector2(-22f, 0f));
+            CreateAnchoredText(parent, "Mode", string.IsNullOrEmpty(mode) ? "Mode pending" : $"Mode {mode}", 22, Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.22f), new Vector2(0.48f, 0.36f), new Vector2(22f, 0f), new Vector2(-8f, 0f));
+            CreateAnchoredText(parent, "Difficulty", difficulty != null ? difficulty.label : "Difficulty pending", 22, GetDifficultyColor(state.difficulty), TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0.48f, 0.22f), new Vector2(0.72f, 0.36f), Vector2.zero, Vector2.zero);
+            CreateAnchoredText(parent, "Hp", difficulty != null ? $"HP {FormatNumber(difficulty.bossHp)}" : $"HP {FormatNumber(state.bossHp)}", 22, Gold, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.72f, 0.22f), new Vector2(1f, 0.36f), new Vector2(8f, 0f), new Vector2(-22f, 0f));
 
             if (map != null && map.isBurger)
             {
-                CreateAnchoredText(parent, "Burger", "BURGER TARGET", 22, Gold, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.18f), new Vector2(22f, 8f), new Vector2(-22f, 0f));
+                CreateAnchoredText(parent, "Burger", "BURGER TARGET", 18, Gold, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.18f), new Vector2(22f, 8f), new Vector2(-22f, 0f));
             }
         }
 
@@ -542,11 +513,11 @@ namespace BossRaid
                 card.gameObject.AddComponent<LayoutElement>();
 
                 var titleColor = map.played ? Muted : White;
-                CreateAnchoredText(card, "MapTitle", map.title, maps.Count <= 6 ? 30 : 24, titleColor, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.44f), Vector2.one, new Vector2(16f, 0f), new Vector2(-56f, -8f));
-                CreateAnchoredText(card, "MapMode", showAllModes ? map.mode : map.difficultyName, maps.Count <= 6 ? 24 : 20, map.played ? Muted : Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.34f), new Vector2(16f, 8f), new Vector2(-16f, -2f));
+                CreateAnchoredText(card, "MapTitle", map.title, maps.Count <= 6 ? 28 : 19, titleColor, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.44f), Vector2.one, new Vector2(16f, 0f), new Vector2(-56f, -8f));
+                CreateAnchoredText(card, "MapMode", showAllModes ? map.mode : map.difficultyName, maps.Count <= 6 ? 21 : 15, map.played ? Muted : Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.34f), new Vector2(16f, 8f), new Vector2(-16f, -2f));
                 if (map.isBurger)
                 {
-                    CreateAnchoredText(card, "Burger", "BURGER", maps.Count <= 6 ? 22 : 18, Gold, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.58f, 0.38f), new Vector2(1f, 0.72f), new Vector2(0f, 0f), new Vector2(-16f, 0f));
+                    CreateAnchoredText(card, "Burger", "BURGER", maps.Count <= 6 ? 20 : 14, Gold, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.58f, 0.38f), new Vector2(1f, 0.72f), new Vector2(0f, 0f), new Vector2(-16f, 0f));
                 }
 
                 if (!isRoundMap)
@@ -599,12 +570,12 @@ namespace BossRaid
             card.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
             AddOutline(card, map.isBurger ? Gold : Line, map.isBurger ? 2.2f : 1.2f);
 
-            CreateAnchoredText(card, "MapTitle", map.title, 24, map.played ? Muted : White, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.44f), Vector2.one, new Vector2(14f, 0f), new Vector2(-14f, -4f));
-            CreateAnchoredText(card, "MapId", string.IsNullOrEmpty(map.id) ? map.mode : map.id, 19, map.played ? Muted : Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(0.52f, 0.34f), new Vector2(14f, 6f), new Vector2(-4f, 0f));
+            CreateAnchoredText(card, "MapTitle", map.title, 20, map.played ? Muted : White, TextAnchor.MiddleLeft, FontStyle.Bold, new Vector2(0f, 0.44f), Vector2.one, new Vector2(14f, 0f), new Vector2(-14f, -4f));
+            CreateAnchoredText(card, "MapId", string.IsNullOrEmpty(map.id) ? map.mode : map.id, 15, map.played ? Muted : Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, Vector2.zero, new Vector2(0.52f, 0.34f), new Vector2(14f, 6f), new Vector2(-4f, 0f));
 
             if (map.isBurger)
             {
-                CreateAnchoredText(card, "Burger", "BURGER", 18, Gold, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.56f, 0.34f), new Vector2(1f, 0.72f), new Vector2(0f, 0f), new Vector2(-14f, 0f));
+                CreateAnchoredText(card, "Burger", "BURGER", 14, Gold, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.56f, 0.34f), new Vector2(1f, 0.72f), new Vector2(0f, 0f), new Vector2(-14f, 0f));
             }
         }
 
@@ -632,8 +603,8 @@ namespace BossRaid
             var tile = CreateRect($"Stat_{label}", parent, new Vector2(width * index, 0f), new Vector2(width * (index + 1), 1f), new Vector2(8f, 26f), new Vector2(-8f, -14f));
             tile.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.036f, 0.052f, 0.92f);
             AddOutline(tile, Line, 1f);
-            CreateAnchoredText(tile, "Label", label, 18, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.62f), Vector2.one, new Vector2(4f, 0f), new Vector2(-4f, -8f));
-            CreateAnchoredText(tile, "Value", value, 28, color, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.58f), new Vector2(4f, 6f), new Vector2(-4f, -2f));
+            CreateAnchoredText(tile, "Label", label, 13, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.62f), Vector2.one, new Vector2(4f, 0f), new Vector2(-4f, -8f));
+            CreateAnchoredText(tile, "Value", value, 23, color, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.58f), new Vector2(4f, 6f), new Vector2(-4f, -2f));
         }
 
         private void BuildResultStat(RectTransform parent, string label, string value, Color color, int index)
@@ -641,8 +612,8 @@ namespace BossRaid
             var width = 0.25f;
             var tile = CreatePanel($"ResultStat_{label}", parent, new Vector2(width * index, 0f), new Vector2(width * (index + 1), 1f), new Vector2(8f, 0f), new Vector2(-8f, 0f), PanelAlt);
             AddOutline(tile, Line, 1f);
-            CreateAnchoredText(tile, "Label", label, 22, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.60f), Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, -6f));
-            CreateAnchoredText(tile, "Value", value, 36, color, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.56f), new Vector2(8f, 8f), new Vector2(-8f, -2f));
+            CreateAnchoredText(tile, "Label", label, 17, Muted, TextAnchor.MiddleCenter, FontStyle.Bold, new Vector2(0f, 0.60f), Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, -6f));
+            CreateAnchoredText(tile, "Value", value, 30, color, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, new Vector2(1f, 0.56f), new Vector2(8f, 8f), new Vector2(-8f, -2f));
         }
 
         private bool TryBuildPrefab(string resourceName, Transform parent)
@@ -653,6 +624,11 @@ namespace BossRaid
             }
 
             var prefab = Resources.Load<GameObject>(PrefabResourcePath + resourceName);
+            if (prefab == null)
+            {
+                prefab = Resources.Load<GameObject>(FallbackPrefabResourcePath + resourceName);
+            }
+
             if (prefab == null)
             {
                 return false;
@@ -734,7 +710,7 @@ namespace BossRaid
                 {
                     if (activeContext != null && !string.IsNullOrEmpty(activeContext.mode) && binding.key == "ModeName")
                     {
-                        color = activeContext.selected ? Magenta : White;
+                        color = activeContext.selected ? Cyan : White;
                     }
 
                     text.color = color;
@@ -816,28 +792,9 @@ namespace BossRaid
                     return BuildResultStatContext(index);
                 case BossRaidUiBindingSource.Spectator:
                     return new PrefabContext { index = index };
-                case BossRaidUiBindingSource.CurrentTeamPlayer:
-                    return BuildCurrentTeamPlayerContext(index);
             }
 
             return null;
-        }
-
-        private PrefabContext BuildCurrentTeamPlayerContext(int index)
-        {
-            var team = state.CurrentTeam;
-            var roster = team != null ? team.players : null;
-            string name;
-            if (roster != null && index >= 0 && index < roster.Count && !string.IsNullOrEmpty(roster[index]))
-            {
-                name = roster[index];
-            }
-            else
-            {
-                name = $"Player {index + 1}";
-            }
-
-            return new PrefabContext { playerName = name, index = index };
         }
 
         private PrefabContext BuildResultStatContext(int index)
@@ -877,12 +834,12 @@ namespace BossRaid
                 }
                 else if (!string.IsNullOrEmpty(context.mode))
                 {
-                    outline.effectColor = context.selected ? Magenta : Line;
+                    outline.effectColor = context.selected ? Cyan : Line;
                     outline.effectDistance = context.selected ? new Vector2(4f, -4f) : new Vector2(1.2f, -1.2f);
                 }
                 else if (context.map != null)
                 {
-                    outline.effectColor = context.selected ? Magenta : context.map.isBurger ? Gold : Line;
+                    outline.effectColor = context.selected ? Cyan : context.map.isBurger ? Gold : Line;
                     outline.effectDistance = context.selected ? new Vector2(4f, -4f) : new Vector2(1.5f, -1.5f);
                 }
             }
@@ -893,13 +850,7 @@ namespace BossRaid
                 return;
             }
 
-            if (context.team != null)
-            {
-                image.color = context.selected
-                    ? new Color(context.team.color.r * 0.22f, context.team.color.g * 0.22f, context.team.color.b * 0.22f, 0.92f)
-                    : PanelAlt;
-            }
-            else if (context.difficulty != null && context.selected)
+            if (context.difficulty != null && context.selected)
             {
                 var color = GetDifficultyColor(context.difficulty.id);
                 image.color = new Color(color.r * 0.18f, color.g * 0.18f, color.b * 0.18f, 0.98f);
@@ -907,22 +858,22 @@ namespace BossRaid
             else if (!string.IsNullOrEmpty(context.mode))
             {
                 image.color = context.selected
-                    ? new Color(Magenta.r * 0.20f, Magenta.g * 0.20f, Magenta.b * 0.20f, 0.98f)
+                    ? new Color(0.06f, 0.14f, 0.18f, 0.98f)
                     : Panel;
             }
             else if (context.map != null)
             {
                 if (context.selected)
                 {
-                    image.color = new Color(Magenta.r * 0.20f, Magenta.g * 0.20f, Magenta.b * 0.20f, 0.98f);
+                    image.color = new Color(0.06f, 0.14f, 0.18f, 0.98f);
                 }
                 else if (context.map.isBurger)
                 {
-                    image.color = new Color(Gold.r * 0.18f, Gold.g * 0.18f, Gold.b * 0.05f, 0.98f);
+                    image.color = new Color(0.14f, 0.095f, 0.035f, 0.98f);
                 }
                 else if (context.map.played || !context.roundMap)
                 {
-                    image.color = new Color(0.030f, 0.018f, 0.055f, 0.72f);
+                    image.color = new Color(0.035f, 0.038f, 0.045f, 0.86f);
                 }
             }
         }
@@ -954,9 +905,9 @@ namespace BossRaid
                 case "Record":
                     return $"{state.clearCount}C {state.failCount}F";
                 case "StandbySubtitle":
-                    return "CO-OP RAID OVERLAY_";
+                    return "Co-op boss raid overlay ready";
                 case "MapRouletteTitle":
-                    return string.IsNullOrEmpty(state.selectedMode) ? "MAP LOTTERY" : $"{state.selectedMode} MAP LOTTERY";
+                    return string.IsNullOrEmpty(state.selectedMode) ? "MAP ROULETTE" : $"{state.selectedMode} MAP ROULETTE";
                 case "SelectedMapTitle":
                     return map != null ? map.title : "No map selected";
                 case "SelectedMapDifficultyName":
@@ -966,12 +917,7 @@ namespace BossRaid
                 case "SelectedMapMapper":
                     return map != null ? map.mapper : "Mapper pending";
                 case "SelectedMapMode":
-                    if (context != null && context.map != null && !string.IsNullOrEmpty(context.map.mode))
-                    {
-                        return context.map.mode;
-                    }
-
-                    return map != null && !string.IsNullOrEmpty(map.mode) ? map.mode : string.IsNullOrEmpty(state.selectedMode) ? "Mode pending" : state.selectedMode;
+                    return map != null && !string.IsNullOrEmpty(map.mode) ? $"Mode {map.mode}" : string.IsNullOrEmpty(state.selectedMode) ? "Mode pending" : $"Mode {state.selectedMode}";
                 case "CurrentDifficultyLabel":
                     return difficulty != null ? difficulty.label : "Difficulty pending";
                 case "CurrentDifficultyHp":
@@ -982,45 +928,24 @@ namespace BossRaid
                     return difficulty != null ? difficulty.label : "Difficulty pending";
                 case "BossDamageText":
                     return $"{FormatNumber(state.totalScore)} / {FormatNumber(state.bossHp)}";
-                case "BossDamagePercent":
-                    var ratio = state.bossHp <= 0 ? 1f : Mathf.Clamp01((float)state.totalScore / state.bossHp);
-                    return $"{ratio * 100f:0.0}%";
                 case "ResultText":
-                    return state.lastResult == BossRaidResults.Clear ? "VICTORY" : "DEFEAT";
+                    return state.lastResult == BossRaidResults.Clear ? "CLEAR" : "FAILED";
                 case "ResultMessage":
-                    return (string.IsNullOrEmpty(state.resultMessage) ? BuildResultMessage(state.lastResult == BossRaidResults.Clear) : state.resultMessage).ToUpperInvariant();
-                case "ResultMapInfo":
-                    return BuildResultMapInfo();
-                case "ResultExtra":
-                    return state.lastResult == BossRaidResults.Clear
-                        ? $"PRIZE +{FormatWon(difficulty != null ? difficulty.prize : 0)}"
-                        : "INSERT COIN TO CONTINUE";
+                    return string.IsNullOrEmpty(state.resultMessage) ? BuildResultMessage(state.lastResult == BossRaidResults.Clear) : state.resultMessage;
                 case "BurgerMarker":
                     return map != null && map.isBurger ? "BURGER TARGET" : "";
                 case "TeamName":
                     return context != null && context.team != null ? context.team.name : "";
                 case "TeamScore":
                     return context != null && context.team != null ? FormatNumber(context.team.score) : "";
-                case "TeamRoster":
-                    return context != null && context.team != null ? BuildTeamRoster(context.team) : "";
-                case "TeamReadyStatus":
-                    return context != null && context.selected ? "READY" : "STANDBY";
                 case "SpectatorLabel":
                     return context != null ? $"SPECTATOR {context.index + 1}" : "SPECTATOR";
-                case "PlayerName":
-                    return context != null ? (context.playerName ?? "") : "";
-                case "PlayerSlot":
-                    return context != null ? $"P{context.index + 1}" : "";
                 case "ModeName":
                     return context != null ? context.mode : "";
-                case "ModeDescription":
-                    return context != null ? GetModeDescription(context.mode) : "";
-                case "ModeActiveTag":
-                    return context != null && context.selected ? "NOW SPINNING" : "";
                 case "ModeCount":
                     return context != null ? $"{CountModeMaps(context.mode)} maps" : "";
                 case "DifficultySelected":
-                    return context != null && context.selected ? "SELECTED" : "";
+                    return context != null && context.selected ? "CURRENT PICK" : "";
                 case "DifficultyLabel":
                     return context != null && context.difficulty != null ? context.difficulty.label : "";
                 case "DifficultyHp":
@@ -1037,16 +962,8 @@ namespace BossRaid
                     return state.screen == BossRaidScreens.RouletteMap ? context.map.difficultyName : $"{context.map.mode} / {context.map.id}";
                 case "MapId":
                     return context != null && context.map != null ? context.map.id : "";
-                case "MapCreator":
-                    return context != null && context.map != null ? BuildMapCreator(context.map) : "";
-                case "MapDifficultyName":
-                    return context != null && context.map != null ? context.map.difficultyName : "";
                 case "MapBurgerTag":
-                    return context != null && context.map != null && context.map.isBurger ? "JACKPOT" : "";
-                case "MapPlayedTag":
-                    return context != null && context.map != null && context.map.played ? "PLAYED" : "";
-                case "MapActiveTag":
-                    return context != null && context.map != null && context.selected ? "NOW SPINNING" : "";
+                    return context != null && context.map != null && context.map.isBurger ? "BURGER" : "";
                 case "StatLabel":
                     return context != null ? context.statLabel : "";
                 case "StatValue":
@@ -1104,9 +1021,9 @@ namespace BossRaid
                 case BossRaidScreens.BurgerReveal:
                     return "BURGER REVEAL";
                 case BossRaidScreens.RouletteMode:
-                    return "MODE LOTTERY";
+                    return "MODE ROULETTE";
                 case BossRaidScreens.RouletteMap:
-                    return "MAP LOTTERY";
+                    return "MAP ROULETTE";
                 case BossRaidScreens.DifficultySelect:
                     return "DIFFICULTY";
                 case BossRaidScreens.MapReady:
@@ -1114,7 +1031,7 @@ namespace BossRaid
                 case BossRaidScreens.InGame:
                     return "RAID LIVE";
                 case BossRaidScreens.Result:
-                    return state.lastResult == BossRaidResults.Clear ? "STAGE CLEAR" : "GAME OVER";
+                    return state.lastResult == BossRaidResults.Clear ? "RESULT: CLEAR" : "RESULT: FAILED";
                 default:
                     return "STANDBY";
             }
@@ -1142,7 +1059,7 @@ namespace BossRaid
                 return Red;
             }
 
-            return Magenta;
+            return Cyan;
         }
 
         private Color GetDifficultyColor(string difficulty)
@@ -1156,70 +1073,6 @@ namespace BossRaid
                 default:
                     return Gold;
             }
-        }
-
-        private static string GetModeDescription(string mode)
-        {
-            switch (mode)
-            {
-                case "HD":
-                    return "HIDDEN";
-                case "HR":
-                    return "HARD ROCK";
-                case "DT":
-                    return "DOUBLE TIME";
-                default:
-                    return "NO MOD";
-            }
-        }
-
-        private static string BuildTeamRoster(BossRaidTeam team)
-        {
-            if (team == null || team.players == null || team.players.Count == 0)
-            {
-                return "ROSTER PENDING";
-            }
-
-            var names = new List<string>();
-            for (var i = 0; i < team.players.Count; i++)
-            {
-                if (!string.IsNullOrWhiteSpace(team.players[i]))
-                {
-                    names.Add(team.players[i]);
-                }
-            }
-
-            return names.Count == 0 ? "ROSTER PENDING" : string.Join(" / ", names);
-        }
-
-        private static string BuildMapCreator(BossRaidMap map)
-        {
-            if (map == null)
-            {
-                return "";
-            }
-
-            if (!string.IsNullOrEmpty(map.artist) && !string.IsNullOrEmpty(map.mapper))
-            {
-                return $"{map.artist} / {map.mapper}";
-            }
-
-            if (!string.IsNullOrEmpty(map.mapper))
-            {
-                return map.mapper;
-            }
-
-            return map.artist ?? "";
-        }
-
-        private string BuildResultMapInfo()
-        {
-            var map = state.SelectedMap;
-            var difficulty = state.CurrentDifficulty;
-            var title = map != null ? map.title : "No map";
-            var mode = map != null && !string.IsNullOrEmpty(map.mode) ? map.mode : string.IsNullOrEmpty(state.selectedMode) ? "Mode pending" : state.selectedMode;
-            var boss = difficulty != null ? $"{difficulty.label} / {FormatNumber(difficulty.bossHp)} HP" : $"{FormatNumber(state.bossHp)} HP";
-            return $"MAP {title} / MODE {mode} / BOSS {boss}";
         }
 
         private string BuildResultMessage(bool isClear)

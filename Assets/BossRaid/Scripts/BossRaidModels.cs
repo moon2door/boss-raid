@@ -89,7 +89,6 @@ namespace BossRaid
         public string name;
         public int score;
         public Color color = Color.white;
-        public List<string> players = new List<string>();
     }
 
     [Serializable]
