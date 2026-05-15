@@ -21,6 +21,9 @@ namespace BossRaid.UIDesign.Editor
         // ----- 출력 경로 & 디자인 해상도 -------------------------------------------------
         private const string OutputFolder = "Assets/BossRaid/Resources/BossRaidUi_v3";
         private static readonly Vector2 Design = new Vector2(1920f, 1080f);
+        private static readonly Vector2 MapReadySpectatorViewport = new Vector2(456f, 342f);
+        private static readonly Vector2 InGameSpectatorViewport = new Vector2(588f, 441f);
+        private const float SpectatorViewportSpacing = 18f;
 
         // ----- v3 컬러 팔레트 -----------------------------------------------------------
         private static readonly Color BgScreen = Hex("0d0322");
@@ -51,15 +54,10 @@ namespace BossRaid.UIDesign.Editor
         private static readonly Color Team4 = Yellow;
 
         private const int MinimumReadableFontSize = 16;
-        // 안쪽 강한 외곽선(가독성) + 바깥 부드러운 헤일로(글로우) 2단
-        // 슈퍼샘플링 비활성 상태이므로 거리는 화면 픽셀 그대로.
-        private const float TextGlowInnerAlpha    = 0.95f;
-        private const float TextGlowInnerDistance = 1.5f;
-        private const float TextGlowOuterAlpha    = 0.40f;
-        private const float TextGlowOuterDistance = 3f;
+        // Text outlines are intentionally avoided; they shimmer on small spectator captures.
         // 검은 드롭섀도(어두운 배경 위에서 텍스트 가독성 확보)
-        private const float TextShadowAlpha       = 0.55f;
-        private const float TextShadowDistance    = 2f;
+        private const float TextShadowAlpha       = 0.45f;
+        private const float TextShadowDistance    = 1f;
 
         // ----- 메뉴 진입점 --------------------------------------------------------------
         [MenuItem("Boss Raid/UI_Design v3/Generate Prefabs")]
@@ -273,7 +271,7 @@ namespace BossRaid.UIDesign.Editor
 
                     BodyText(cell.transform, "Meta", "CHASER01", 22, TextMuted, false,
                         new Vector2(0, 0.04f), new Vector2(1, 0.32f),
-                        new Vector2(14, 0), new Vector2(-14, 0),
+                        new Vector2(14, 0), new Vector2(burger ? -112 : -14, 0),
                         TextAnchor.MiddleCenter);
 
                     var burgerMark = BodyText(cell.transform, "Burger", "★", 28, Yellow, true,
@@ -329,9 +327,9 @@ namespace BossRaid.UIDesign.Editor
                 new Vector2(80, -900), new Vector2(-80, -360));
             HLayoutAuto(cards.gameObject, 36, true, true);
 
-            DiffCard(cards, "EASY",   "▽", "1,000K", "3,000₩", "STAGE I · EASY",   Green,   false);
-            DiffCard(cards, "NORMAL", "◇", "1,400K", "5,000₩", "STAGE II · NORMAL", Yellow, true);
-            DiffCard(cards, "HARD",   "△", "2,000K", "15,000₩","STAGE III · HARD",  Magenta, false);
+            DiffCard(cards, "EASY",   "▽", "1,000,000", "3,000₩", "STAGE I · EASY",   Green,   false);
+            DiffCard(cards, "NORMAL", "◇", "1,400,000", "5,000₩", "STAGE II · NORMAL", Yellow, true);
+            DiffCard(cards, "HARD",   "△", "2,000,000", "15,000₩","STAGE III · HARD",  Magenta, false);
 
             // Footer (간단한 텍스트만)
             TopText(root.transform, "Footer",
@@ -602,6 +600,12 @@ namespace BossRaid.UIDesign.Editor
                     new Vector2(1, 1), new Vector2(1, 1),
                     new Vector2(-50, -50), new Vector2(-14, -14),
                     TextAnchor.MiddleCenter);
+
+                var badge = NewRect("BurgerBadge", cell.transform,
+                    new Vector2(1, 1), new Vector2(1, 1),
+                    new Vector2(-66, -50), new Vector2(-14, -14));
+                badge.gameObject.AddComponent<Image>().color = Yellow;
+                BoxText(badge, "T", "BGR", 14, BgScreen);
             }
 
             // ACTIVE 태그
@@ -680,14 +684,14 @@ namespace BossRaid.UIDesign.Editor
             BannerRow(banner, "BOSS",  "NORMAL",    Yellow,  1);
             BannerRow(banner, "HP",    "1,400,000", Magenta, 2);
 
-            // 3 Spectators (top: y=-460 ~ -840, right: 460)
-            var spec = NewRect("Spectators", root.transform,
-                new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(60, -840), new Vector2(-460, -460));
-            HLayoutAuto(spec.gameObject, 18, true, true);
-            SpectatorSlot(spec, "P1 · YIRIRU",    "- osu! tourney -", false);
-            SpectatorSlot(spec, "P2 · MOON2DOOR", "- osu! tourney -", false);
-            SpectatorSlot(spec, "P3 · AXDVGN",    "- osu! tourney -", false);
+            // 3 Spectators: each viewport is 320x240.
+            var spec = CenteredRect("Spectators", root.transform,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(-200f, -650f), SpectatorRowSize(3, MapReadySpectatorViewport));
+            HLayoutAuto(spec.gameObject, SpectatorViewportSpacing, true, true, false, false);
+            SpectatorSlot(spec, "P1 · YIRIRU",    "- osu! tourney -", MapReadySpectatorViewport);
+            SpectatorSlot(spec, "P2 · MOON2DOOR", "- osu! tourney -", MapReadySpectatorViewport);
+            SpectatorSlot(spec, "P3 · AXDVGN",    "- osu! tourney -", MapReadySpectatorViewport);
 
             // Side panel (right) - chat
             var side = Panel("SidePanel", root.transform,
@@ -750,12 +754,12 @@ namespace BossRaid.UIDesign.Editor
                 TextAnchor.MiddleRight);
         }
 
-        private static void SpectatorSlot(RectTransform parent, string slotTag, string placeholder, bool ready)
+        private static void SpectatorSlot(RectTransform parent, string slotTag, string placeholder, Vector2 viewportSize)
         {
             var slot = Panel("Slot_" + slotTag, parent.transform,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                 BgDarker, Line);
-            slot.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
+            ApplySpectatorSlotLayout(slot, viewportSize);
 
             var tag = NewRect("Tag", slot.transform,
                 new Vector2(0, 1), new Vector2(0, 1),
@@ -778,14 +782,14 @@ namespace BossRaid.UIDesign.Editor
             BuildHud(root.transform, "RAID LIVE", Magenta, "[HR3]  Initial — Even now, I'm searching for you.",
                      new[] { ("STAGE","3/8",Cyan), ("PRIZE","25K",Yellow), ("BURGER","x1",Magenta), ("RECORD","2-0",Green) });
 
-            // Spectators (top: -200 ~ -800)
-            var spec = NewRect("Spectators", root.transform,
-                new Vector2(0, 1), new Vector2(1, 1),
-                new Vector2(60, -800), new Vector2(-60, -200));
-            HLayoutAuto(spec.gameObject, 18, true, true);
-            InGameSlot(spec, "P1", "YIRIRU");
-            InGameSlot(spec, "P2", "MOON2DOOR");
-            InGameSlot(spec, "P3", "AXDVGN");
+            // Spectators: each viewport is 320x240.
+            var spec = CenteredRect("Spectators", root.transform,
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -500f), SpectatorRowSize(3, InGameSpectatorViewport));
+            HLayoutAuto(spec.gameObject, SpectatorViewportSpacing, true, true, false, false);
+            InGameSlot(spec, "P1", "YIRIRU", InGameSpectatorViewport);
+            InGameSlot(spec, "P2", "MOON2DOOR", InGameSpectatorViewport);
+            InGameSlot(spec, "P3", "AXDVGN", InGameSpectatorViewport);
 
             // Boss Bar Area (bottom: y=30, height=220)
             var bossArea = Panel("BossBarArea", root.transform,
@@ -845,12 +849,12 @@ namespace BossRaid.UIDesign.Editor
             return root;
         }
 
-        private static void InGameSlot(RectTransform parent, string p, string name)
+        private static void InGameSlot(RectTransform parent, string p, string name, Vector2 viewportSize)
         {
             var slot = Panel("Slot_" + p, parent.transform,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
                 BgDarker, Line);
-            slot.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
+            ApplySpectatorSlotLayout(slot, viewportSize);
 
             var tag = NewRect("Tag", slot.transform,
                 new Vector2(0, 1), new Vector2(0, 1),
@@ -874,6 +878,24 @@ namespace BossRaid.UIDesign.Editor
                 new Vector2(0, 0), new Vector2(1, 0),
                 new Vector2(18, 14), new Vector2(-18, 50),
                 TextAnchor.MiddleLeft);
+        }
+
+        private static Vector2 SpectatorRowSize(int slotCount, Vector2 viewportSize)
+        {
+            return new Vector2(
+                viewportSize.x * slotCount + SpectatorViewportSpacing * Mathf.Max(0, slotCount - 1),
+                viewportSize.y);
+        }
+
+        private static void ApplySpectatorSlotLayout(RectTransform slot, Vector2 viewportSize)
+        {
+            var layout = slot.gameObject.AddComponent<LayoutElement>();
+            layout.minWidth = viewportSize.x;
+            layout.minHeight = viewportSize.y;
+            layout.preferredWidth = viewportSize.x;
+            layout.preferredHeight = viewportSize.y;
+            layout.flexibleWidth = 0f;
+            layout.flexibleHeight = 0f;
         }
 
         private static void PlayerTile(RectTransform parent, string idx, string name)
@@ -1295,51 +1317,14 @@ namespace BossRaid.UIDesign.Editor
         }
 
         /// <summary>
-        /// 텍스트 글로우 + 가독성 보강. v3의 text-shadow 효과를 근사한다.
-        /// - Shadow(검정): 어두운 배경 위에서 텍스트 발색 유지
-        /// - Outline 안쪽 동일색(짙음): 텍스트 글자 본체 강조 = "테두리"처럼 보임
-        /// - Outline 바깥쪽 동일색(옅음, 두꺼움): 부드러운 헤일로 = "발광"처럼 보임
-        /// (Outline 2단 + Shadow 1단으로 v3 .neon-text-* 룩 근사)
+        /// Adds a small drop shadow for readability without adding text outlines.
         /// </summary>
         private static void AddGlow(GameObject go, Color color)
         {
-            // v3 CSS에서 크롬(yellow→magenta 그라데) 텍스트의 text-shadow 색은 magenta로
-            // 별도 지정되어 있어 — 단색 오렌지에 magenta 글로우를 입혀야 그라데 느낌이 산다.
-            bool isChrome = ColorMatches(color, Chrome);
-            Color glowColor = isChrome ? Magenta : color;
-
-            // BaseMeshEffect는 컴포넌트 순서대로 mesh를 변형하며, 나중에 추가된 효과의 사본이
-            // 더 뒤(낮은 인덱스 = 먼저 그려짐 = 뒤쪽)에 깔린다. 따라서:
-            //   1) 드롭섀도(가독성용)
-            //   2) Inner Outline (글자에 또렷한 테두리, 좁은 오프셋)
-            //   3) Outer Outline (넓은 헤일로 = 부드러운 발광, 마지막에 추가해 뒤에 깔림)
-
-            // 1) 검정 드롭섀도
             var drop = go.AddComponent<Shadow>();
             drop.effectColor = new Color(0f, 0f, 0f, TextShadowAlpha);
             drop.effectDistance = new Vector2(TextShadowDistance, -TextShadowDistance);
             drop.useGraphicAlpha = true;
-
-            // 2) 안쪽 외곽선 — 짙은 동일색
-            var inner = go.AddComponent<Outline>();
-            var ic = glowColor; ic.a = TextGlowInnerAlpha;
-            inner.effectColor = ic;
-            inner.effectDistance = new Vector2(TextGlowInnerDistance, -TextGlowInnerDistance);
-            inner.useGraphicAlpha = true;
-
-            // 3) 바깥쪽 헤일로 — 옅은 동일색, 마지막
-            var outer = go.AddComponent<Outline>();
-            var oc = glowColor; oc.a = TextGlowOuterAlpha;
-            outer.effectColor = oc;
-            outer.effectDistance = new Vector2(TextGlowOuterDistance, -TextGlowOuterDistance);
-            outer.useGraphicAlpha = true;
-        }
-
-        private static bool ColorMatches(Color a, Color b)
-        {
-            return Mathf.Approximately(a.r, b.r)
-                && Mathf.Approximately(a.g, b.g)
-                && Mathf.Approximately(a.b, b.b);
         }
 
         /// <summary>

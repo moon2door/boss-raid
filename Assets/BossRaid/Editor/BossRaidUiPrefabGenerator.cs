@@ -17,9 +17,11 @@ namespace BossRaid.Editor
         private static readonly Color Muted = new Color(0.62f, 0.68f, 0.75f, 1f);
         private static readonly Color Red = new Color(0.95f, 0.18f, 0.22f, 1f);
         private static readonly Color Green = new Color(0.22f, 0.85f, 0.48f, 1f);
-        private static readonly Color Cyan = new Color(0.25f, 0.78f, 1f, 1f);
+        private static readonly Color Cyan = new Color32(0, 240, 255, 255);
         private static readonly Color Gold = new Color(1f, 0.72f, 0.22f, 1f);
         private static readonly Vector2 DesignResolution = new Vector2(1920f, 1080f);
+        private static readonly Vector2 SpectatorViewport = new Vector2(480f, 360f);
+        private const float SpectatorViewportSpacing = 18f;
 
         [MenuItem("Boss Raid/Generate UI Prefabs")]
         public static void GenerateDefaultPrefabs()
@@ -277,19 +279,31 @@ namespace BossRaid.Editor
 
         private static void SpectatorSlots(Transform content)
         {
-            var slots = Rect("SpectatorSlots", content, new Vector2(0.5f, 0.62f), new Vector2(0.5f, 0.62f), new Vector2(-740f, -178f), new Vector2(740f, 178f));
-            Horizontal(slots.gameObject, 20f, false);
+            var rowSize = SpectatorRowSize(3);
+            var slots = Rect("SpectatorSlots", content, new Vector2(0.5f, 0.62f), new Vector2(0.5f, 0.62f), -rowSize * 0.5f, rowSize * 0.5f);
+            Horizontal(slots.gameObject, SpectatorViewportSpacing, false);
             for (var i = 0; i < 3; i++)
             {
                 var slot = PanelRect("SpectatorSlot_" + (i + 1), slots, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.012f, 0.015f, 0.022f, 0.78f));
                 var layout = slot.gameObject.AddComponent<LayoutElement>();
-                layout.preferredWidth = 480f;
-                layout.preferredHeight = 356f;
+                layout.minWidth = SpectatorViewport.x;
+                layout.minHeight = SpectatorViewport.y;
+                layout.preferredWidth = SpectatorViewport.x;
+                layout.preferredHeight = SpectatorViewport.y;
+                layout.flexibleWidth = 0f;
+                layout.flexibleHeight = 0f;
                 Outline(slot.gameObject, Line, 1.5f);
                 Bind(slot.gameObject, "ItemVisual", BossRaidUiBindingSource.Spectator, i, BossRaidUiColorRole.None, false);
                 Text(slot, "Label", "SPECTATOR " + (i + 1), "SpectatorLabel", 18, BossRaidUiColorRole.Muted, TextAnchor.UpperLeft, FontStyle.Bold, new Vector2(0f, 0.80f), Vector2.one, new Vector2(18f, -14f), new Vector2(-18f, -12f), BossRaidUiBindingSource.Spectator, i);
                 Text(slot, "Guide", "osu! tourney", "", 22, BossRaidUiColorRole.Muted, TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, 0f), BossRaidUiBindingSource.Spectator, i);
             }
+        }
+
+        private static Vector2 SpectatorRowSize(int slotCount)
+        {
+            return new Vector2(
+                SpectatorViewport.x * slotCount + SpectatorViewportSpacing * Mathf.Max(0, slotCount - 1),
+                SpectatorViewport.y);
         }
 
         private static void MapInfo(Transform parent, string label)

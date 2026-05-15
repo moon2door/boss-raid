@@ -15,7 +15,7 @@ namespace BossRaid
         private static readonly Color Muted = new Color(0.62f, 0.68f, 0.75f, 1f);
         private static readonly Color Red = new Color(0.95f, 0.18f, 0.22f, 1f);
         private static readonly Color Green = new Color(0.22f, 0.85f, 0.48f, 1f);
-        private static readonly Color Cyan = new Color(0.25f, 0.78f, 1f, 1f);
+        private static readonly Color Cyan = new Color32(0, 240, 255, 255);
         private static readonly Color Gold = new Color(1f, 0.72f, 0.22f, 1f);
         private static readonly Color Magenta = new Color(1f, 0.18f, 0.72f, 1f);
         private const string PrefabResourcePath = "BossRaidUi_v3/";
@@ -23,6 +23,10 @@ namespace BossRaid
         private const int MinimumReadablePrefabFontSize = 16;
         private const float TextSupersampleScale = 0.5f;
         private const float TextSupersampleMultiplier = 2f;
+        private static readonly Vector2 FallbackSpectatorViewportSize = new Vector2(480f, 360f);
+        private static readonly Vector2 MapReadySpectatorViewportSize = new Vector2(456f, 342f);
+        private static readonly Vector2 InGameSpectatorViewportSize = new Vector2(588f, 441f);
+        private const float SpectatorViewportSpacing = 18f;
 
         [SerializeField] private bool usePrefabUi = true;
 
@@ -225,7 +229,7 @@ namespace BossRaid
             BuildStatTile(right, "Prize", FormatWon(state.prizePool), Gold, 0);
             BuildStatTile(right, "Burger", state.burgerCount.ToString(), Gold, 1);
             BuildStatTile(right, "Round", $"{Mathf.Clamp(state.roundIndex + 1, 1, 8)} / 8", Cyan, 2);
-            BuildStatTile(right, "Record", $"{state.clearCount}C {state.failCount}F", state.failCount > 0 ? Red : Green, 3);
+            BuildStatTile(right, "Record", $"{state.clearCount}-{state.failCount}", state.failCount > 0 ? Red : Green, 3);
 
             connectionText = CreateAnchoredText(header, "Connection", socketClient != null ? socketClient.StatusLabel : state.connectionLabel, 15, Muted, TextAnchor.MiddleRight, FontStyle.Bold, new Vector2(0.65f, 0f), Vector2.one, new Vector2(12f, 2f), new Vector2(-18f, -104f));
         }
@@ -394,7 +398,7 @@ namespace BossRaid
             BuildResultStat(statRow, "Prize Pool", FormatWon(state.prizePool), Gold, 0);
             BuildResultStat(statRow, "Burgers", state.burgerCount.ToString(), Gold, 1);
             BuildResultStat(statRow, "Burger Miss", state.burgerMissCount.ToString(), Red, 2);
-            BuildResultStat(statRow, "Record", $"{state.clearCount}C {state.failCount}F", isClear ? Green : Red, 3);
+            BuildResultStat(statRow, "Record", $"{state.clearCount}-{state.failCount}", isClear ? Green : Red, 3);
         }
 
         private void BuildSelectedMapHero(RectTransform parent, string label, bool reserveRightForTeams)
@@ -420,20 +424,51 @@ namespace BossRaid
 
         private void BuildSpectatorSlots(RectTransform parent)
         {
-            var root = CreateRect("SpectatorSlots", parent, new Vector2(0.5f, 0.62f), new Vector2(0.5f, 0.62f), new Vector2(-740f, -178f), new Vector2(740f, 178f));
+            var rowSize = GetSpectatorRowSize(3, FallbackSpectatorViewportSize);
+            var root = CreateRect("SpectatorSlots", parent, new Vector2(0.5f, 0.62f), new Vector2(0.5f, 0.62f), -rowSize * 0.5f, rowSize * 0.5f);
             var layout = root.gameObject.AddComponent<HorizontalLayoutGroup>();
-            layout.spacing = 20f;
-            layout.childForceExpandHeight = true;
-            layout.childForceExpandWidth = true;
+            layout.spacing = SpectatorViewportSpacing;
+            layout.childForceExpandHeight = false;
+            layout.childForceExpandWidth = false;
+            layout.childControlHeight = true;
+            layout.childControlWidth = true;
 
             for (var i = 0; i < 3; i++)
             {
                 var slot = CreatePanel($"SpectatorSlot_{i + 1}", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.012f, 0.015f, 0.022f, 0.78f));
-                slot.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+                ApplySpectatorLayoutElement(slot, FallbackSpectatorViewportSize);
                 AddOutline(slot, Line, 1.5f);
                 CreateAnchoredText(slot, "Label", $"SPECTATOR {i + 1}", 18, Muted, TextAnchor.UpperLeft, FontStyle.Bold, new Vector2(0f, 0.80f), Vector2.one, new Vector2(18f, -14f), new Vector2(-18f, -12f));
                 CreateAnchoredText(slot, "Guide", "osu! tourney", 22, new Color(Muted.r, Muted.g, Muted.b, 0.42f), TextAnchor.MiddleCenter, FontStyle.Bold, Vector2.zero, Vector2.one, new Vector2(18f, 0f), new Vector2(-18f, 0f));
             }
+        }
+
+        private static Vector2 GetSpectatorRowSize(int slotCount, Vector2 viewportSize)
+        {
+            return new Vector2(
+                viewportSize.x * slotCount + SpectatorViewportSpacing * Mathf.Max(0, slotCount - 1),
+                viewportSize.y);
+        }
+
+        private static void ApplySpectatorLayoutElement(RectTransform slot, Vector2 viewportSize)
+        {
+            if (slot == null)
+            {
+                return;
+            }
+
+            var layoutElement = slot.GetComponent<LayoutElement>();
+            if (layoutElement == null)
+            {
+                layoutElement = slot.gameObject.AddComponent<LayoutElement>();
+            }
+
+            layoutElement.minWidth = viewportSize.x;
+            layoutElement.minHeight = viewportSize.y;
+            layoutElement.preferredWidth = viewportSize.x;
+            layoutElement.preferredHeight = viewportSize.y;
+            layoutElement.flexibleWidth = 0f;
+            layoutElement.flexibleHeight = 0f;
         }
 
         private void BuildMapInfoPanel(RectTransform parent, string label)
@@ -699,12 +734,7 @@ namespace BossRaid
                 var outlines = text.GetComponents<Outline>();
                 for (var j = 0; j < outlines.Length; j++)
                 {
-                    var outline = outlines[j];
-                    var color = outline.effectColor;
-                    color.a = Mathf.Min(color.a, 0.36f);
-                    outline.effectColor = color;
-                    outline.effectDistance = ClampEffectDistance(outline.effectDistance, 0.75f);
-                    outline.useGraphicAlpha = true;
+                    outlines[j].enabled = false;
                 }
 
                 var shadows = text.GetComponents<Shadow>();
@@ -717,9 +747,9 @@ namespace BossRaid
                     }
 
                     var color = shadow.effectColor;
-                    color.a = Mathf.Min(color.a, 0.8f);
+                    color.a = Mathf.Min(color.a, 0.45f);
                     shadow.effectColor = color;
-                    shadow.effectDistance = ClampEffectDistance(shadow.effectDistance, 1f);
+                    shadow.effectDistance = ClampEffectDistance(shadow.effectDistance, 0.5f);
                     shadow.useGraphicAlpha = true;
                 }
             }
@@ -1010,6 +1040,14 @@ namespace BossRaid
             SetNamedText(cell, "Title", map.title);
             SetNamedText(cell, "Meta", BuildMapMeta(map));
             SetNamedTextColor(cell, "Id", isBurger ? Gold : Cyan);
+            SetNamedTextContainedBox(cell, "Title",
+                new Vector2(0f, 0.34f), new Vector2(1f, 0.72f),
+                new Vector2(14f, 0f), new Vector2(-14f, 0f),
+                TextAnchor.MiddleCenter, 24, 14);
+            SetNamedTextContainedBox(cell, "Meta",
+                new Vector2(0f, 0.04f), new Vector2(1f, 0.32f),
+                new Vector2(14f, 0f), new Vector2(isBurger ? -112f : -14f, 0f),
+                TextAnchor.MiddleCenter, 20, 13);
             SetNamedObjectActive(cell, "Burger", isBurger);
             SetNamedObjectActive(cell, "Stamp", isBurger);
 
@@ -1066,7 +1104,7 @@ namespace BossRaid
 
             SetNamedText(card, "Ribbon", $"STAGE {index + 1} - {ToUpperSafe(difficulty.label)}");
             SetNamedText(card, "Name", ToUpperSafe(difficulty.label));
-            SetNamedText(card, "HpVal", FormatCompactHp(difficulty.bossHp));
+            SetNamedText(card, "HpVal", FormatNumber(difficulty.bossHp));
             SetNamedText(card, "PrVal", FormatWon(difficulty.prize));
             SetNamedTextColor(card, "Name", accent);
             SetNamedTextColor(card, "HpVal", isSelected ? accent : White);
@@ -1227,11 +1265,23 @@ namespace BossRaid
             SetNamedText(cell, "Creator", BuildMapCreator(map));
             SetNamedTextColor(cell, "Title", isSelected ? Magenta : White);
             SetNamedTextColor(cell, "IdTag", map.isBurger ? Gold : Cyan);
+            SetNamedTextContainedBox(cell, "Title",
+                new Vector2(0f, 0.50f), new Vector2(1f, 0.72f),
+                new Vector2(28f, 0f), new Vector2(-28f, 0f),
+                TextAnchor.MiddleCenter, 32, 15);
+            SetNamedTextContainedBox(cell, "Diff",
+                new Vector2(0f, 0.30f), new Vector2(1f, 0.50f),
+                new Vector2(28f, 0f), new Vector2(-28f, 0f),
+                TextAnchor.MiddleCenter, 22, 13);
+            SetNamedTextContainedBox(cell, "Creator",
+                new Vector2(0f, 0.08f), new Vector2(1f, 0.26f),
+                new Vector2(28f, 0f), new Vector2(-28f, 0f),
+                TextAnchor.MiddleCenter, 20, 13);
             SetNamedObjectActive(cell, "Burger", map.isBurger);
             SetNamedObjectActive(cell, "BurgerBadge", map.isBurger);
             SetNamedObjectActive(cell, "Spin", isSelected);
 
-            if (map.isBurger && FindDeep(cell, "Burger") == null)
+            if (map.isBurger)
             {
                 EnsureTag(cell, "BurgerBadge", "BGR", Gold, Background,
                     new Vector2(1f, 1f), new Vector2(1f, 1f),
@@ -1307,6 +1357,10 @@ namespace BossRaid
             SetNamedText(rootTransform, "Map", BuildHudMapLine(map, difficulty));
             SetNamedText(rootTransform, "Conn", string.IsNullOrEmpty(state.connectionLabel) ? "BRIDGE ONLINE" : state.connectionLabel);
             SetNamedTextColor(rootTransform, "Label", labelColor);
+            SetNamedTextContainedBox(rootTransform, "Map",
+                new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(20f, 12f), new Vector2(-20f, 38f),
+                TextAnchor.MiddleCenter, 24, 13);
 
             SetHudStat(rootTransform, "Stat_STAGE", "STAGE", $"{stage}/8", Cyan);
             var prizeValue = state.prizePool > 0 ? state.prizePool : difficulty != null ? difficulty.prize : 0;
@@ -1334,6 +1388,14 @@ namespace BossRaid
                 SetNamedText(banner, "V_BOSS", difficultyLabel);
                 SetNamedText(banner, "V_HP", FormatNumber(bossHp));
                 SetNamedTextColor(banner, "V_BOSS", GetV3DifficultyColor(state.difficulty));
+                SetNamedTextContainedBox(banner, "Title",
+                    new Vector2(0f, 0.30f), new Vector2(1f, 0.85f),
+                    new Vector2(36f, 0f), new Vector2(-420f, 0f),
+                    TextAnchor.MiddleLeft, 64, 24);
+                SetNamedTextContainedBox(banner, "Subline",
+                    new Vector2(0f, 0f), new Vector2(1f, 0.32f),
+                    new Vector2(36f, 16f), new Vector2(-420f, 0f),
+                    TextAnchor.MiddleLeft, 20, 12);
                 SetNamedObjectActive(banner, "BurgerStamp", map != null && map.isBurger);
             }
         }
@@ -1342,6 +1404,7 @@ namespace BossRaid
         {
             ApplyV3Hud(rootTransform, "MAP READY", Magenta);
             ApplyV3SelectedMapBanner(rootTransform);
+            ApplyV3SpectatorLayout(rootTransform, new Vector2(-200f, -650f), MapReadySpectatorViewportSize);
             HideSpectatorNameTags(rootTransform);
             ApplyV3RoomChat(rootTransform);
         }
@@ -1349,9 +1412,49 @@ namespace BossRaid
         private void ApplyV3InGame(Transform rootTransform)
         {
             ApplyV3Hud(rootTransform, "RAID LIVE", Magenta);
+            ApplyV3SpectatorLayout(rootTransform, new Vector2(0f, -500f), InGameSpectatorViewportSize);
             HideInGameSlotNames(rootTransform);
             ApplyV3PlayerScoreRow(rootTransform);
             ApplyV3BossBar(rootTransform);
+        }
+
+        private static void ApplyV3SpectatorLayout(Transform rootTransform, Vector2 anchoredCenter, Vector2 viewportSize)
+        {
+            var spectators = FindRect(rootTransform, "Spectators");
+            if (spectators == null)
+            {
+                return;
+            }
+
+            var slotCount = Mathf.Max(1, spectators.childCount);
+            spectators.anchorMin = new Vector2(0.5f, 1f);
+            spectators.anchorMax = new Vector2(0.5f, 1f);
+            spectators.pivot = new Vector2(0.5f, 0.5f);
+            spectators.anchoredPosition = anchoredCenter;
+            spectators.sizeDelta = GetSpectatorRowSize(slotCount, viewportSize);
+
+            var layout = spectators.GetComponent<HorizontalLayoutGroup>();
+            if (layout != null)
+            {
+                layout.spacing = SpectatorViewportSpacing;
+                layout.childControlWidth = true;
+                layout.childControlHeight = true;
+                layout.childForceExpandWidth = false;
+                layout.childForceExpandHeight = false;
+                layout.childAlignment = TextAnchor.MiddleCenter;
+            }
+
+            for (var i = 0; i < spectators.childCount; i++)
+            {
+                var slot = spectators.GetChild(i).GetComponent<RectTransform>();
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                ApplySpectatorLayoutElement(slot, viewportSize);
+                slot.sizeDelta = viewportSize;
+            }
         }
 
         private void HideSpectatorNameTags(Transform rootTransform)
@@ -1519,6 +1622,8 @@ namespace BossRaid
 
         private void ApplyV3Result(Transform rootTransform, bool isClear)
         {
+            ApplyV3Hud(rootTransform, isClear ? "STAGE CLEAR" : "GAME OVER", isClear ? Green : Red);
+
             var message = string.IsNullOrEmpty(state.resultMessage)
                 ? BuildResultMessage(isClear)
                 : state.resultMessage;
@@ -1527,6 +1632,76 @@ namespace BossRaid
             SetNamedText(rootTransform, "MapInfo", BuildResultMapInfo());
             CenterNamedText(rootTransform, "Message", new Vector2(0f, -540f), new Vector2(3400f, 100f));
             CenterNamedText(rootTransform, "MapInfo", new Vector2(0f, -590f), new Vector2(3400f, 80f));
+            ApplyV3ResultBossBar(rootTransform, isClear);
+            ApplyV3ResultStats(rootTransform, isClear);
+        }
+
+        private void ApplyV3ResultBossBar(Transform rootTransform, bool isClear)
+        {
+            var difficulty = state.CurrentDifficulty;
+            var bossHp = difficulty != null ? difficulty.bossHp : state.bossHp;
+            var ratio = bossHp <= 0 ? (isClear ? 1f : 0f) : Mathf.Clamp01((float)state.totalScore / bossHp);
+            if (isClear)
+            {
+                ratio = Mathf.Max(ratio, 1f);
+            }
+
+            var bossBar = FindRect(rootTransform, "BossBar");
+            if (bossBar == null)
+            {
+                return;
+            }
+
+            var fill = FindRect(bossBar, "Fill");
+            if (fill != null)
+            {
+                fill.anchorMin = Vector2.zero;
+                fill.anchorMax = new Vector2(ratio, 1f);
+                fill.offsetMin = Vector2.zero;
+                fill.offsetMax = Vector2.zero;
+
+                var image = fill.GetComponent<Image>();
+                if (image != null)
+                {
+                    image.color = isClear ? Green : Red;
+                }
+            }
+
+            SetNamedText(bossBar, "Lbl", $"{ratio * 100f:0.0}% - {(isClear ? "BOSS DEFEATED" : "BOSS SURVIVED")}");
+        }
+
+        private void ApplyV3ResultStats(Transform rootTransform, bool isClear)
+        {
+            var stats = FindRect(rootTransform, "Stats");
+            if (stats == null)
+            {
+                return;
+            }
+
+            var difficulty = state.CurrentDifficulty;
+            var clearBonus = difficulty != null ? difficulty.prize : 0;
+            SetV3ResultStat(stats, "Stat_PRIZE POOL", "PRIZE POOL", FormatNumber(state.prizePool), isClear && clearBonus > 0 ? $"KRW - +{FormatNumber(clearBonus)}" : "KRW - UNCHANGED", Gold);
+            SetV3ResultStat(stats, "Stat_BURGERS", "BURGERS", $"x{state.burgerCount}", "earned", Magenta);
+            SetV3ResultStat(stats, "Stat_BURGER MISS", "BURGER MISS", $"x{state.burgerMissCount}", "missed", Red);
+            SetV3ResultStat(stats, "Stat_RECORD", "RECORD", $"{state.clearCount}-{state.failCount}", "clear / fail", isClear ? Green : Red);
+        }
+
+        private static void SetV3ResultStat(Transform statsRoot, string tileName, string label, string value, string unit, Color valueColor)
+        {
+            var tile = FindRect(statsRoot, tileName);
+            if (tile == null)
+            {
+                return;
+            }
+
+            SetNamedText(tile, "Lbl", label);
+            SetNamedText(tile, "Val", value);
+            SetNamedText(tile, "Unit", unit);
+            SetNamedTextColor(tile, "Val", valueColor);
+            SetNamedTextContainedBox(tile, "Val",
+                new Vector2(0f, 0.18f), new Vector2(1f, 0.82f),
+                Vector2.zero, Vector2.zero,
+                TextAnchor.MiddleCenter, 72, 24);
         }
 
         private void ApplyPrefabBindings(Transform rootTransform, PrefabContext context)
@@ -1672,7 +1847,7 @@ namespace BossRaid
                 case 2:
                     return new PrefabContext { statLabel = "Burger Miss", statValue = state.burgerMissCount.ToString(), statColor = Red, index = index };
                 default:
-                    return new PrefabContext { statLabel = "Record", statValue = $"{state.clearCount}C {state.failCount}F", statColor = state.lastResult == BossRaidResults.Clear ? Green : Red, index = index };
+                    return new PrefabContext { statLabel = "Record", statValue = $"{state.clearCount}-{state.failCount}", statColor = state.lastResult == BossRaidResults.Clear ? Green : Red, index = index };
             }
         }
 
@@ -1767,7 +1942,7 @@ namespace BossRaid
                 case "Round":
                     return $"{Mathf.Clamp(state.roundIndex + 1, 1, 8)} / 8";
                 case "Record":
-                    return $"{state.clearCount}C {state.failCount}F";
+                    return $"{state.clearCount}-{state.failCount}";
                 case "StandbySubtitle":
                     return "Co-op boss raid overlay ready";
                 case "MapRouletteTitle":
@@ -2289,6 +2464,35 @@ namespace BossRaid
             text.resizeTextMinSize = Mathf.Min(text.resizeTextMinSize, text.fontSize);
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+        }
+
+        private static void SetNamedTextContainedBox(Transform rootTransform, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, TextAnchor alignment, int maxFontSize, int minFontSize)
+        {
+            var rect = FindRect(rootTransform, name);
+            if (rect == null)
+            {
+                return;
+            }
+
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+
+            var text = GetFirstText(rect);
+            if (text == null)
+            {
+                return;
+            }
+
+            text.alignment = alignment;
+            text.fontSize = Mathf.Max(maxFontSize, MinimumReadablePrefabFontSize);
+            text.resizeTextForBestFit = true;
+            text.resizeTextMaxSize = text.fontSize;
+            text.resizeTextMinSize = Mathf.Clamp(minFontSize, 8, text.fontSize);
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.lineSpacing = 0.9f;
         }
 
         private static Text EnsureText(Transform rootTransform, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, int fontSize, Color color, TextAnchor alignment, FontStyle style)
