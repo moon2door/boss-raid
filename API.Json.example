@@ -22,6 +22,8 @@
   "tosuTeamIds": ["team-1", "team-2"],
   "tosuUpdateScreens": ["inGame"],
   "tosuReconnectSeconds": 5,
+  "tosuAutoFinishEnabled": true,
+  "tosuAutoFinishDelaySeconds": 5.0,
   "obsWebSocketEnabled": false,
   "obsWebSocketUrl": "ws://127.0.0.1:4455",
   "obsWebSocketPassword": "",

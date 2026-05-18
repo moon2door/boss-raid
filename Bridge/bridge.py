@@ -40,6 +40,9 @@ class BossRaidBridge:
         self.clients = set()
         self.irc_client = None
         self.screen_listeners = []
+        self.tosu_auto_finish_armed = False
+        self.tosu_auto_finish_result_since = None
+        self.tosu_auto_finish_key = None
         self.state = self._state_from_setting() if load_settings else self._default_state()
 
     def _default_state(self):
@@ -504,6 +507,126 @@ class BossRaidBridge:
         if changed:
             self.broadcast()
         return changed
+
+    def maybe_auto_finish_from_tosu(self, data, delay_seconds=5.0, enabled=True):
+        if not enabled or not isinstance(data, dict):
+            self._reset_tosu_auto_finish()
+            return False
+
+        tourney = data.get("tourney")
+        if not isinstance(tourney, dict):
+            self._reset_tosu_auto_finish()
+            return False
+
+        clients = tourney.get("clients", [])
+        if not isinstance(clients, list) or not clients:
+            self._reset_tosu_auto_finish()
+            return False
+
+        now = time.monotonic()
+        delay_seconds = max(0.0, self._to_float(delay_seconds, 5.0))
+        with self.lock:
+            if self.state.get("screen") != "inGame":
+                self._reset_tosu_auto_finish_locked()
+                return False
+
+            finish_key = f"{self.state.get('roundIndex', 0)}:{self.state.get('selectedMapId', '')}"
+            if self.tosu_auto_finish_key != finish_key:
+                self.tosu_auto_finish_key = finish_key
+                self.tosu_auto_finish_armed = False
+                self.tosu_auto_finish_result_since = None
+
+            if self._tosu_has_active_score_locked(tourney, clients) or self._tosu_is_play_screen(data, tourney):
+                self.tosu_auto_finish_armed = True
+
+            if not self.tosu_auto_finish_armed:
+                return False
+
+            if not self._tosu_is_result_screen(data, tourney):
+                self.tosu_auto_finish_result_since = None
+                return False
+
+            if self.tosu_auto_finish_result_since is None:
+                self.tosu_auto_finish_result_since = now
+                return False
+
+            if now - self.tosu_auto_finish_result_since < delay_seconds:
+                return False
+
+            print("[TOSU] Auto finishing map after result screen delay.", flush=True)
+            self._finish_map_locked()
+            self._normalize_locked()
+            self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+            self._reset_tosu_auto_finish_locked()
+            next_screen = self.state.get("screen", "")
+
+        self.broadcast()
+        self._notify_screen_changed(next_screen)
+        return True
+
+    def _reset_tosu_auto_finish(self):
+        with self.lock:
+            self._reset_tosu_auto_finish_locked()
+
+    def _reset_tosu_auto_finish_locked(self):
+        self.tosu_auto_finish_armed = False
+        self.tosu_auto_finish_result_since = None
+        self.tosu_auto_finish_key = None
+
+    def _tosu_has_active_score_locked(self, tourney, clients):
+        total_score = tourney.get("totalScore", {})
+        if isinstance(total_score, dict):
+            if self._to_int(total_score.get("left", 0), 0) > 0 or self._to_int(total_score.get("right", 0), 0) > 0:
+                return True
+
+        for client in clients:
+            if not isinstance(client, dict):
+                continue
+            play = client.get("play", {})
+            if isinstance(play, dict) and self._to_int(play.get("score", 0), 0) > 0:
+                return True
+
+        return self._to_int(self.state.get("totalScore", 0), 0) > 0
+
+    @staticmethod
+    def _tosu_is_result_screen(data, tourney):
+        states = []
+        state = data.get("state")
+        if isinstance(state, dict):
+            states.append(state)
+
+        states.append({"number": tourney.get("ipcState"), "name": ""})
+        result_names = {"resultscreen", "rankingvs", "rankingteam", "rankingtagcoop"}
+        result_numbers = {7, 14, 17, 18}
+        for state_item in states:
+            name = str(state_item.get("name", "")).replace("_", "").replace("-", "").lower()
+            try:
+                number = int(state_item.get("number", -1))
+            except (TypeError, ValueError):
+                number = -1
+            if name in result_names or number in result_numbers:
+                return True
+
+        return False
+
+    @staticmethod
+    def _tosu_is_play_screen(data, tourney):
+        states = []
+        state = data.get("state")
+        if isinstance(state, dict):
+            states.append(state)
+
+        states.append({"number": tourney.get("ipcState"), "name": ""})
+        for state_item in states:
+            name = str(state_item.get("name", "")).replace("_", "").replace("-", "").lower()
+            try:
+                number = int(state_item.get("number", -1))
+            except (TypeError, ValueError):
+                number = -1
+            if name == "play" or number == 2:
+                return True
+
+        return False
 
     def _apply_tosu_tourney_locked(self, tourney, clients, team_ids):
         teams = self.state.get("teams", [])
@@ -1059,11 +1182,15 @@ def load_tosu_config(config=None):
         update_screens = ["inGame"]
 
     reconnect_seconds = max(1, BossRaidBridge._to_int(config.get("tosuReconnectSeconds", 5), 5))
+    auto_finish_enabled = bool(config.get("tosuAutoFinishEnabled", True))
+    auto_finish_delay_seconds = max(0.0, BossRaidBridge._to_float(config.get("tosuAutoFinishDelaySeconds", 5.0), 5.0))
     return {
         "url": str(config.get("tosuWebSocketUrl", "ws://127.0.0.1:24050/websocket/v2")).strip() or "ws://127.0.0.1:24050/websocket/v2",
         "teamIds": team_ids,
         "updateScreens": update_screens,
         "reconnectSeconds": reconnect_seconds,
+        "autoFinishEnabled": auto_finish_enabled,
+        "autoFinishDelaySeconds": auto_finish_delay_seconds,
     }
 
 
@@ -1360,6 +1487,11 @@ class TosuTourneyScoreClient:
                 tourney,
                 team_ids=self.config.get("teamIds", []),
                 allowed_screens=self.config.get("updateScreens", []),
+            )
+            self.bridge.maybe_auto_finish_from_tosu(
+                data,
+                delay_seconds=self.config.get("autoFinishDelaySeconds", 5.0),
+                enabled=self.config.get("autoFinishEnabled", True),
             )
 
     def _set_status(self, status):
@@ -2691,6 +2823,26 @@ def self_test():
     assert bridge.snapshot()["teams"][0]["players"][0]["score"] == 100000
     assert bridge.snapshot()["teams"][0]["players"][1]["name"] == "P2"
     assert bridge.snapshot()["teams"][1]["score"] == 120000
+    auto_bridge = BossRaidBridge(load_settings=False)
+    auto_bridge.apply_command({"type": "set_difficulty", "difficulty": "easy"})
+    auto_bridge.apply_command({"type": "set_screen", "screen": "inGame"})
+    auto_payload = {
+        "state": {"number": 7, "name": "resultScreen"},
+        "tourney": {
+            "ipcState": 7,
+            "totalScore": {"left": 700000, "right": 400000},
+            "clients": [
+                {"ipcId": 0, "team": "left", "user": {"name": "P1"}, "play": {"score": 700000, "accuracy": 98.5, "combo": {"current": 120, "max": 200}, "hits": {"0": 1}}},
+                {"ipcId": 1, "team": "right", "user": {"name": "P2"}, "play": {"score": 400000, "accuracy": 99.1, "combo": {"current": 180, "max": 240}, "hits": {"0": 0}}},
+            ],
+        },
+    }
+    assert auto_bridge.apply_tosu_tourney_state(auto_payload["tourney"], team_ids=["team-1", "team-2"], allowed_screens=["inGame"])
+    assert not auto_bridge.maybe_auto_finish_from_tosu(auto_payload, delay_seconds=5.0)
+    auto_bridge.tosu_auto_finish_result_since -= 5.1
+    assert auto_bridge.maybe_auto_finish_from_tosu(auto_payload, delay_seconds=5.0)
+    assert auto_bridge.snapshot()["screen"] == "result"
+    assert auto_bridge.snapshot()["lastResult"] == "clear"
     bridge.apply_command({"type": "ready_map"})
     assert bridge.auto_start_map_if_ready()
     assert bridge.snapshot()["screen"] == "inGame"

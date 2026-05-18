@@ -21,6 +21,17 @@ namespace BossRaid
         private const string PrefabResourcePath = "BossRaidUi_v3/";
         private const string FallbackPrefabResourcePath = "BossRaidUi/";
         private const int MinimumReadablePrefabFontSize = 16;
+        private const int RoomChatVisibleLineCount = 6;
+        private const int StartRosterFontSize = 16;
+        private const int StartRosterMinFontSize = 12;
+        private const int BurgerTitleFontSize = 24;
+        private const int BurgerTitleMinFontSize = 15;
+        private const int BurgerMetaFontSize = 19;
+        private const int BurgerMetaMinFontSize = 10;
+        private const int RoomChatWhoFontSize = 16;
+        private const int RoomChatWhoMinFontSize = 11;
+        private const int RoomChatMessageFontSize = 22;
+        private const int RoomChatMessageMinFontSize = 14;
         private const float TextSupersampleScale = 0.5f;
         private const float TextSupersampleMultiplier = 2f;
         private static readonly Vector2 FallbackSpectatorViewportSize = new Vector2(480f, 360f);
@@ -700,6 +711,7 @@ namespace BossRaid
             {
                 ApplyV3NamedState(instance.transform, resourceName);
                 ApplyV3Readability(instance.transform);
+                ApplyV3PostReadabilityText(instance.transform, resourceName);
             }
 
             return true;
@@ -896,6 +908,27 @@ namespace BossRaid
             }
         }
 
+        private void ApplyV3PostReadabilityText(Transform rootTransform, string resourceName)
+        {
+            if (rootTransform == null)
+            {
+                return;
+            }
+
+            switch (resourceName)
+            {
+                case "StartScreen":
+                    ApplyV3StandbyTextOverrides(rootTransform);
+                    break;
+                case "BurgerMapSelectScreen":
+                    ApplyV3BurgerTextOverrides(rootTransform);
+                    break;
+                case "MapReadyScreen":
+                    ApplyV3RoomChatTextOverrides(rootTransform);
+                    break;
+            }
+        }
+
         private void ApplyV3Standby(Transform rootTransform)
         {
             SetNamedRectCenter(rootTransform, "InsertCoin", new Vector2(0.5f, 1f), new Vector2(0f, -170f), new Vector2(900f, 44f));
@@ -918,17 +951,71 @@ namespace BossRaid
                 SetNamedTextBox(cards[i], "Roster",
                     new Vector2(0f, 0.20f), new Vector2(1f, 0.58f),
                     new Vector2(18f, 0f), new Vector2(-18f, 0f),
-                    TextAnchor.MiddleCenter, 20);
+                    TextAnchor.MiddleCenter, StartRosterFontSize);
                 SetNamedTextBox(cards[i], "Ready",
                     new Vector2(0f, 0f), new Vector2(1f, 0.20f),
                     new Vector2(20f, 2f), new Vector2(-20f, -2f),
-                    TextAnchor.MiddleRight, 13);
+                    TextAnchor.MiddleCenter, 13);
 
                 if (team != null)
                 {
                     SetNamedText(cards[i], "Name", team.name);
                     SetNamedTextColor(cards[i], "Name", accent);
                 }
+
+                ApplyV3StandbyRoster(cards[i], team);
+            }
+        }
+
+        private void ApplyV3StandbyTextOverrides(Transform rootTransform)
+        {
+            var cards = FindRectsByPrefix(rootTransform, "TeamCard_");
+            for (var i = 0; i < cards.Count; i++)
+            {
+                var team = i < state.teams.Count ? state.teams[i] : null;
+                ApplyV3StandbyRoster(cards[i], team);
+                ConfigureNamedVisualText(cards[i], "Ready", 13, 10, TextAnchor.MiddleCenter, HorizontalWrapMode.Overflow, VerticalWrapMode.Overflow, 1f, false);
+            }
+        }
+
+        private void ApplyV3StandbyRoster(RectTransform card, BossRaidTeam team)
+        {
+            if (card == null)
+            {
+                return;
+            }
+
+            var players = GetTeamPlayerNames(team);
+            var hasPlayers = players.Count > 0;
+            SetNamedObjectActive(card, "Roster", !hasPlayers);
+            if (!hasPlayers)
+            {
+                SetNamedText(card, "Roster", "- ROSTER PENDING -");
+                ConfigureNamedVisualText(card, "Roster", StartRosterFontSize, StartRosterMinFontSize, TextAnchor.MiddleCenter, HorizontalWrapMode.Wrap, VerticalWrapMode.Truncate, 0.88f, true);
+            }
+            else
+            {
+                SetNamedText(card, "Roster", "");
+            }
+
+            for (var i = 0; i < 6; i++)
+            {
+                var col = i % 3;
+                var row = i / 3;
+                var x0 = col == 0 ? 0.02f : col == 1 ? 0.30f : 0.58f;
+                var x1 = col == 0 ? 0.42f : col == 1 ? 0.70f : 0.98f;
+                var y0 = row == 0 ? 0.385f : 0.255f;
+                var y1 = row == 0 ? 0.525f : 0.395f;
+                var slotName = "RosterSlot_" + i;
+                var slot = EnsureText(card, slotName,
+                    new Vector2(x0, y0), new Vector2(x1, y1),
+                    new Vector2(0f, -1f), new Vector2(0f, 1f),
+                    StartRosterFontSize, White, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var active = i < players.Count;
+                slot.text = active ? KeepNameTogether(players[i]) : "";
+                slot.color = White;
+                SetNamedObjectActive(card, slotName, active);
+                ConfigureNamedVisualText(card, slotName, StartRosterFontSize, StartRosterMinFontSize, TextAnchor.MiddleCenter, HorizontalWrapMode.Wrap, VerticalWrapMode.Truncate, 0.88f, true);
             }
         }
 
@@ -983,6 +1070,8 @@ namespace BossRaid
 
         private void ApplyV3BurgerReveal(Transform rootTransform)
         {
+            ApplyV3BurgerGridLayout(rootTransform);
+
             var pickedCount = 0;
             for (var i = 0; i < state.mapPool.Count; i++)
             {
@@ -1037,19 +1126,20 @@ namespace BossRaid
                 1.4f);
 
             SetNamedText(cell, "Id", GetMapDisplayId(map));
-            SetNamedText(cell, "Title", map.title);
-            SetNamedText(cell, "Meta", BuildMapMeta(map));
+            SetNamedText(cell, "Title", FormatBurgerMapTitle(map.title));
+            SetNamedText(cell, "Meta", FormatBurgerMapMeta(BuildMapMeta(map)));
             SetNamedTextColor(cell, "Id", isBurger ? Gold : Cyan);
             SetNamedTextContainedBox(cell, "Title",
-                new Vector2(0f, 0.34f), new Vector2(1f, 0.72f),
-                new Vector2(14f, 0f), new Vector2(-14f, 0f),
-                TextAnchor.MiddleCenter, 24, 14);
+                new Vector2(0f, 0.22f), new Vector2(1f, 0.80f),
+                new Vector2(-10f, 0f), new Vector2(10f, 0f),
+                TextAnchor.MiddleCenter, BurgerTitleFontSize, BurgerTitleMinFontSize);
+            ConfigureBurgerMapTitleText(cell);
             SetNamedTextContainedBox(cell, "Meta",
-                new Vector2(0f, 0.04f), new Vector2(1f, 0.32f),
-                new Vector2(14f, 0f), new Vector2(isBurger ? -112f : -14f, 0f),
-                TextAnchor.MiddleCenter, 20, 13);
+                new Vector2(0f, 0.02f), new Vector2(1f, 0.24f),
+                new Vector2(8f, 0f), new Vector2(-8f, 0f),
+                TextAnchor.MiddleCenter, BurgerMetaFontSize, BurgerMetaMinFontSize);
             SetNamedObjectActive(cell, "Burger", isBurger);
-            SetNamedObjectActive(cell, "Stamp", isBurger);
+            SetNamedObjectActive(cell, "Stamp", false);
 
             if (isBurger)
             {
@@ -1065,10 +1155,65 @@ namespace BossRaid
                     burgerImage.color = Color.clear;
                     burgerImage.raycastTarget = false;
                 }
+            }
+        }
 
-                EnsureTag(cell, "Stamp", "JACKPOT", Gold, Background,
-                    new Vector2(1f, 0f), new Vector2(1f, 0f),
-                    new Vector2(-100f, 8f), new Vector2(-12f, 30f), 13);
+        private void ApplyV3BurgerTextOverrides(Transform rootTransform)
+        {
+            ApplyV3BurgerGridLayout(rootTransform);
+
+            var cells = FindRectsByPrefix(rootTransform, "Cell_");
+            for (var i = 0; i < cells.Count; i++)
+            {
+                ConfigureBurgerMapTitleText(cells[i]);
+                ConfigureNamedVisualText(cells[i], "Meta", BurgerMetaFontSize, BurgerMetaMinFontSize, TextAnchor.MiddleCenter, HorizontalWrapMode.Wrap, VerticalWrapMode.Truncate, 0.84f, true);
+            }
+        }
+
+        private static void ApplyV3BurgerGridLayout(Transform rootTransform)
+        {
+            var rows = FindRectsByPrefix(rootTransform, "Row_");
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+                var layout = row.GetComponent<HorizontalLayoutGroup>();
+                if (layout != null)
+                {
+                    layout.childControlWidth = true;
+                    layout.childControlHeight = true;
+                    layout.childForceExpandWidth = false;
+                    layout.childForceExpandHeight = true;
+                    layout.spacing = 14f;
+                }
+
+                for (var childIndex = 0; childIndex < row.childCount; childIndex++)
+                {
+                    var child = row.GetChild(childIndex);
+                    var rect = child as RectTransform;
+                    if (rect == null)
+                    {
+                        continue;
+                    }
+
+                    var layoutElement = rect.GetComponent<LayoutElement>();
+                    if (layoutElement == null)
+                    {
+                        layoutElement = rect.gameObject.AddComponent<LayoutElement>();
+                    }
+
+                    if (string.Equals(rect.name, "ModeTag", StringComparison.OrdinalIgnoreCase))
+                    {
+                        layoutElement.preferredWidth = 72f;
+                        layoutElement.minWidth = 72f;
+                        layoutElement.flexibleWidth = 0f;
+                    }
+                    else if (rect.name.StartsWith("Cell_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        layoutElement.preferredWidth = -1f;
+                        layoutElement.minWidth = 0f;
+                        layoutElement.flexibleWidth = 1f;
+                    }
+                }
             }
         }
 
@@ -1363,8 +1508,7 @@ namespace BossRaid
                 TextAnchor.MiddleCenter, 24, 13);
 
             SetHudStat(rootTransform, "Stat_STAGE", "STAGE", $"{stage}/8", Cyan);
-            var prizeValue = state.prizePool > 0 ? state.prizePool : difficulty != null ? difficulty.prize : 0;
-            SetHudStat(rootTransform, "Stat_PRIZE", "PRIZE", FormatCompactPrize(prizeValue), Gold);
+            SetHudStat(rootTransform, "Stat_PRIZE", "PRIZE", FormatCompactPrize(state.prizePool), Gold);
             SetHudStat(rootTransform, "Stat_BURGER", "BURGER", $"x{state.burgerCount}", Magenta);
             SetHudStat(rootTransform, "Stat_RECORD", "RECORD", $"{state.clearCount}-{state.failCount}", state.lastResult == BossRaidResults.Fail ? Red : Green);
         }
@@ -1493,10 +1637,10 @@ namespace BossRaid
                 return;
             }
 
-            var lines = BuildRoomChatLines(5);
+            var lines = BuildRoomChatLines(RoomChatVisibleLineCount);
             if (lines.Count == 0)
             {
-                for (var i = 0; i < 5; i++)
+                for (var i = 0; i < RoomChatVisibleLineCount; i++)
                 {
                     SetNamedObjectActive(chat, "Who" + i, false);
                     SetNamedObjectActive(chat, "Msg" + i, false);
@@ -1507,9 +1651,20 @@ namespace BossRaid
                 return;
             }
 
-            for (var i = 0; i < 5; i++)
+            for (var i = 0; i < RoomChatVisibleLineCount; i++)
             {
                 var hasLine = i < lines.Count;
+                var top = 0.985f - i * (1f / RoomChatVisibleLineCount);
+                var bottom = top - (1f / RoomChatVisibleLineCount) + 0.006f;
+                EnsureText(chat, "Who" + i,
+                    new Vector2(0f, bottom), new Vector2(0.34f, top),
+                    new Vector2(4f, -1f), new Vector2(-2f, 1f),
+                    RoomChatWhoFontSize, Magenta, TextAnchor.MiddleCenter, FontStyle.Bold);
+                EnsureText(chat, "Msg" + i,
+                    new Vector2(0.34f, bottom), new Vector2(1f, top),
+                    new Vector2(3f, -1f), new Vector2(-6f, 1f),
+                    RoomChatMessageFontSize, White, TextAnchor.MiddleLeft, FontStyle.Bold);
+
                 SetNamedObjectActive(chat, "Who" + i, hasLine);
                 SetNamedObjectActive(chat, "Msg" + i, hasLine);
 
@@ -1524,10 +1679,25 @@ namespace BossRaid
                     continue;
                 }
 
-                SetNamedText(chat, "Who" + i, lines[i].sender);
-                SetNamedText(chat, "Msg" + i, lines[i].message);
+                SetNamedText(chat, "Who" + i, AddSoftBreaks(lines[i].sender, 10));
+                SetNamedText(chat, "Msg" + i, AddSoftBreaks(lines[i].message, 24));
                 SetNamedTextColor(chat, "Who" + i, lines[i].color);
                 SetNamedTextColor(chat, "Msg" + i, White);
+            }
+        }
+
+        private static void ApplyV3RoomChatTextOverrides(Transform rootTransform)
+        {
+            var chat = FindRect(rootTransform, "Chat");
+            if (chat == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < RoomChatVisibleLineCount; i++)
+            {
+                ConfigureNamedVisualText(chat, "Who" + i, RoomChatWhoFontSize, RoomChatWhoMinFontSize, TextAnchor.MiddleCenter, HorizontalWrapMode.Wrap, VerticalWrapMode.Truncate, 0.78f, true);
+                ConfigureNamedVisualText(chat, "Msg" + i, RoomChatMessageFontSize, RoomChatMessageMinFontSize, TextAnchor.MiddleLeft, HorizontalWrapMode.Wrap, VerticalWrapMode.Truncate, 0.78f, true);
             }
         }
 
@@ -2292,6 +2462,220 @@ namespace BossRaid
             return ToUpperSafe(map.difficultyName);
         }
 
+        private static string BuildTeamRosterRows(BossRaidTeam team)
+        {
+            var players = GetTeamPlayerNames(team);
+            if (players.Count == 0)
+            {
+                return "- ROSTER PENDING -";
+            }
+
+            var rows = new List<string>();
+            var currentRow = new List<string>();
+            for (var i = 0; i < players.Count; i++)
+            {
+                currentRow.Add(KeepNameTogether(players[i]));
+                if (currentRow.Count == 3)
+                {
+                    rows.Add(string.Join("  ", currentRow));
+                    currentRow.Clear();
+                }
+            }
+
+            if (currentRow.Count > 0)
+            {
+                rows.Add(string.Join("  ", currentRow));
+            }
+
+            return rows.Count == 0 ? "- ROSTER PENDING -" : string.Join("\n", rows);
+        }
+
+        private static List<string> GetTeamPlayerNames(BossRaidTeam team)
+        {
+            var names = new List<string>();
+            if (team == null || team.players == null)
+            {
+                return names;
+            }
+
+            for (var i = 0; i < team.players.Count; i++)
+            {
+                var player = team.players[i];
+                if (player == null || string.IsNullOrWhiteSpace(player.name))
+                {
+                    continue;
+                }
+
+                names.Add(player.name.Trim());
+            }
+
+            return names;
+        }
+
+        private static string KeepNameTogether(string name)
+        {
+            return string.IsNullOrEmpty(name) ? string.Empty : name.Replace(" ", "\u00A0");
+        }
+
+        private static string KeepLineTogether(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "";
+            }
+
+            return value.Replace(" ", "\u00A0").Replace("-", "\u2011");
+        }
+
+        private static string AddSoftBreaks(string value, int maxRunLength)
+        {
+            if (string.IsNullOrEmpty(value) || maxRunLength <= 0)
+            {
+                return value ?? "";
+            }
+
+            var builder = new System.Text.StringBuilder(value.Length + 8);
+            var runLength = 0;
+            for (var i = 0; i < value.Length; i++)
+            {
+                var ch = value[i];
+                builder.Append(ch);
+                if (char.IsWhiteSpace(ch))
+                {
+                    runLength = 0;
+                    continue;
+                }
+
+                if (ch == '/' || ch == '_' || ch == ')' || ch == ']')
+                {
+                    builder.Append('\u200B');
+                    runLength = 0;
+                    continue;
+                }
+
+                runLength += 1;
+                if (runLength >= maxRunLength)
+                {
+                    builder.Append('\u200B');
+                    runLength = 0;
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        private static string FormatBurgerMapTitle(string title)
+        {
+            title = CollapseWhitespace(title);
+            if (string.IsNullOrEmpty(title))
+            {
+                return "";
+            }
+
+            return title;
+        }
+
+        private static string FormatBurgerMapMeta(string meta)
+        {
+            meta = CollapseWhitespace(meta);
+            if (string.IsNullOrEmpty(meta))
+            {
+                return "";
+            }
+
+            return meta.Length <= 18 ? KeepLineTogether(meta) : WrapTextForCell(meta, 2, 18);
+        }
+
+        private static string CollapseWhitespace(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "";
+            }
+
+            var builder = new System.Text.StringBuilder(value.Length);
+            var previousWasSpace = false;
+            for (var i = 0; i < value.Length; i++)
+            {
+                var ch = value[i];
+                if (char.IsWhiteSpace(ch))
+                {
+                    if (!previousWasSpace)
+                    {
+                        builder.Append(' ');
+                    }
+
+                    previousWasSpace = true;
+                    continue;
+                }
+
+                builder.Append(ch);
+                previousWasSpace = false;
+            }
+
+            return builder.ToString().Trim();
+        }
+
+        private static string WrapTextForCell(string value, int maxLines, int targetCharsPerLine)
+        {
+            value = CollapseWhitespace(value);
+            if (string.IsNullOrEmpty(value) || maxLines <= 1 || value.Length <= targetCharsPerLine)
+            {
+                return AddSoftBreaks(value, Mathf.Max(targetCharsPerLine + 6, 24));
+            }
+
+            var lines = new List<string>();
+            var words = value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var current = "";
+            for (var i = 0; i < words.Length; i++)
+            {
+                var word = words[i];
+                var candidate = string.IsNullOrEmpty(current) ? word : current + " " + word;
+                var remainingWordCount = words.Length - i - 1;
+                var linesLeftAfterThis = maxLines - lines.Count - 1;
+                if (candidate.Length <= targetCharsPerLine || remainingWordCount > 0 && linesLeftAfterThis <= 0)
+                {
+                    current = candidate;
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(current))
+                {
+                    lines.Add(current);
+                    current = word;
+                }
+                else
+                {
+                    current = AddSoftBreaks(word, Mathf.Max(targetCharsPerLine + 4, 22));
+                }
+
+                if (lines.Count >= maxLines - 1)
+                {
+                    if (i + 1 < words.Length)
+                    {
+                        current = current + " " + string.Join(" ", words, i + 1, words.Length - i - 1);
+                    }
+
+                    break;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(current))
+            {
+                lines.Add(current);
+            }
+
+            for (var i = 0; i < lines.Count; i++)
+            {
+                lines[i] = lines[i].Length <= targetCharsPerLine + 6
+                    ? KeepLineTogether(lines[i])
+                    : AddSoftBreaks(lines[i], Mathf.Max(targetCharsPerLine + 8, 26));
+            }
+
+            return string.Join("\n", lines);
+        }
+
+
         private static string BuildMapCreator(BossRaidMap map)
         {
             if (map == null)
@@ -2326,8 +2710,7 @@ namespace BossRaid
             }
 
             var mode = GetDisplayMode(map);
-            var difficultyLabel = difficulty != null ? difficulty.label : state.difficulty;
-            return $"[{ToUpperSafe(mode)}]  {map.title}  -  {map.difficultyName}  /  {ToUpperSafe(difficultyLabel)}";
+            return $"[{ToUpperSafe(mode)}]  {map.title}  -  {map.difficultyName}";
         }
 
         private string GetDisplayMode(BossRaidMap map)
@@ -2470,12 +2853,208 @@ namespace BossRaid
                 return;
             }
 
+            var multiplier = HasSupersampledTextScale(text) ? TextSupersampleMultiplier : 1f;
+            if (multiplier > 1f)
+            {
+                ExpandRectForSupersampledText(rect);
+            }
+
+            var maxSize = Mathf.Max(1, Mathf.RoundToInt(Mathf.Max(fontSize, MinimumReadablePrefabFontSize) * multiplier));
             text.alignment = alignment;
-            text.fontSize = Mathf.Max(fontSize, MinimumReadablePrefabFontSize);
+            text.fontSize = maxSize;
             text.resizeTextMaxSize = Mathf.Max(text.resizeTextMaxSize, text.fontSize);
             text.resizeTextMinSize = Mathf.Min(text.resizeTextMinSize, text.fontSize);
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+        }
+
+        private static void ConfigureNamedVisualText(Transform rootTransform, string name, int visualFontSize, int minVisualFontSize, TextAnchor alignment, HorizontalWrapMode horizontalOverflow, VerticalWrapMode verticalOverflow, float lineSpacing, bool bestFit)
+        {
+            var rect = FindRect(rootTransform, name);
+            var text = GetFirstText(rect);
+            if (text == null)
+            {
+                return;
+            }
+
+            var multiplier = HasSupersampledTextScale(text) ? TextSupersampleMultiplier : 1f;
+            var maxSize = Mathf.Max(1, Mathf.RoundToInt(visualFontSize * multiplier));
+            var minSize = Mathf.Clamp(Mathf.RoundToInt(minVisualFontSize * multiplier), 1, maxSize);
+
+            text.alignment = alignment;
+            text.fontSize = maxSize;
+            text.resizeTextForBestFit = bestFit;
+            text.resizeTextMaxSize = maxSize;
+            text.resizeTextMinSize = minSize;
+            text.horizontalOverflow = horizontalOverflow;
+            text.verticalOverflow = verticalOverflow;
+            text.lineSpacing = lineSpacing;
+            text.raycastTarget = false;
+        }
+
+        private static void ConfigureBurgerMapTitleText(Transform rootTransform)
+        {
+            var rect = FindRect(rootTransform, "Title");
+            var text = GetFirstText(rect);
+            if (text == null)
+            {
+                return;
+            }
+
+            var multiplier = HasSupersampledTextScale(text) ? TextSupersampleMultiplier : 1f;
+            var maxVisualSize = BurgerTitleFontSize;
+            var minVisualSize = BurgerTitleMinFontSize;
+            var title = CollapseWhitespace(text.text);
+            var width = rect != null ? rect.rect.width : 0f;
+
+            if (width <= 1f && rect != null && rect.parent is RectTransform parentRect)
+            {
+                width = parentRect.rect.width;
+            }
+
+            if (width <= 1f)
+            {
+                width = 420f * multiplier;
+            }
+
+            var chosenText = title;
+            var chosenVisualSize = minVisualSize;
+            var singleLineSize = FindLargestFontSizeForWidth(text, title, width, maxVisualSize, minVisualSize, multiplier);
+            if (singleLineSize >= minVisualSize)
+            {
+                chosenVisualSize = singleLineSize;
+            }
+            else if (TryChooseTwoLineTitle(text, title, width, maxVisualSize, minVisualSize, multiplier, out var wrappedText, out var wrappedSize))
+            {
+                chosenText = wrappedText;
+                chosenVisualSize = wrappedSize;
+            }
+            else
+            {
+                chosenText = title;
+                chosenVisualSize = minVisualSize;
+            }
+
+            var maxSize = Mathf.Max(1, Mathf.RoundToInt(chosenVisualSize * multiplier));
+            text.text = chosenText;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.fontSize = maxSize;
+            text.resizeTextForBestFit = false;
+            text.resizeTextMaxSize = maxSize;
+            text.resizeTextMinSize = maxSize;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.lineSpacing = 0.82f;
+            text.raycastTarget = false;
+        }
+
+        private static int FindLargestFontSizeForWidth(Text text, string value, float maxWidth, int maxVisualSize, int minVisualSize, float multiplier)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return maxVisualSize;
+            }
+
+            for (var visualSize = maxVisualSize; visualSize >= minVisualSize; visualSize--)
+            {
+                var actualSize = Mathf.Max(1, Mathf.RoundToInt(visualSize * multiplier));
+                if (GetPreferredTextWidth(text, value, actualSize) <= maxWidth)
+                {
+                    return visualSize;
+                }
+            }
+
+            return minVisualSize - 1;
+        }
+
+        private static bool TryChooseTwoLineTitle(Text text, string value, float maxWidth, int maxVisualSize, int minVisualSize, float multiplier, out string wrappedText, out int visualSize)
+        {
+            wrappedText = value ?? "";
+            visualSize = minVisualSize;
+            var words = CollapseWhitespace(value).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length <= 1)
+            {
+                return false;
+            }
+
+            for (var size = maxVisualSize; size >= minVisualSize; size--)
+            {
+                var actualSize = Mathf.Max(1, Mathf.RoundToInt(size * multiplier));
+                var bestCandidate = "";
+                var bestScore = float.MaxValue;
+                for (var breakIndex = 1; breakIndex < words.Length; breakIndex++)
+                {
+                    var first = string.Join(" ", words, 0, breakIndex);
+                    var second = string.Join(" ", words, breakIndex, words.Length - breakIndex);
+                    var firstWidth = GetPreferredTextWidth(text, first, actualSize);
+                    var secondWidth = GetPreferredTextWidth(text, second, actualSize);
+                    var widest = Mathf.Max(firstWidth, secondWidth);
+                    if (widest > maxWidth)
+                    {
+                        continue;
+                    }
+
+                    var score = widest + Mathf.Abs(firstWidth - secondWidth) * 0.2f;
+                    if (score < bestScore)
+                    {
+                        bestScore = score;
+                        bestCandidate = first + "\n" + second;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(bestCandidate))
+                {
+                    wrappedText = bestCandidate;
+                    visualSize = size;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static float GetPreferredTextWidth(Text text, string value, int fontSize)
+        {
+            if (text == null || string.IsNullOrEmpty(value))
+            {
+                return 0f;
+            }
+
+            var settings = text.GetGenerationSettings(Vector2.zero);
+            settings.fontSize = fontSize;
+            settings.horizontalOverflow = HorizontalWrapMode.Overflow;
+            settings.verticalOverflow = VerticalWrapMode.Overflow;
+            return text.cachedTextGeneratorForLayout.GetPreferredWidth(value, settings) / text.pixelsPerUnit;
+        }
+
+        private static int GetLongestVisibleLineLength(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return 0;
+            }
+
+            var longest = 0;
+            var current = 0;
+            for (var i = 0; i < value.Length; i++)
+            {
+                var ch = value[i];
+                if (ch == '\n' || ch == '\r')
+                {
+                    longest = Mathf.Max(longest, current);
+                    current = 0;
+                    continue;
+                }
+
+                if (ch == '\u200B')
+                {
+                    continue;
+                }
+
+                current += 1;
+            }
+
+            return Mathf.Max(longest, current);
         }
 
         private static void SetNamedTextContainedBox(Transform rootTransform, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax, TextAnchor alignment, int maxFontSize, int minFontSize)
@@ -2497,11 +3076,19 @@ namespace BossRaid
                 return;
             }
 
+            var multiplier = HasSupersampledTextScale(text) ? TextSupersampleMultiplier : 1f;
+            if (multiplier > 1f)
+            {
+                ExpandRectForSupersampledText(rect);
+            }
+
+            var maxSize = Mathf.Max(1, Mathf.RoundToInt(Mathf.Max(maxFontSize, MinimumReadablePrefabFontSize) * multiplier));
+            var minSize = Mathf.Clamp(Mathf.RoundToInt(minFontSize * multiplier), 8, maxSize);
             text.alignment = alignment;
-            text.fontSize = Mathf.Max(maxFontSize, MinimumReadablePrefabFontSize);
+            text.fontSize = maxSize;
             text.resizeTextForBestFit = true;
-            text.resizeTextMaxSize = text.fontSize;
-            text.resizeTextMinSize = Mathf.Clamp(minFontSize, 8, text.fontSize);
+            text.resizeTextMaxSize = maxSize;
+            text.resizeTextMinSize = minSize;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
             text.lineSpacing = 0.9f;
@@ -2511,6 +3098,7 @@ namespace BossRaid
         {
             var rect = FindRect(rootTransform, name);
             Text text = null;
+            var shouldExpandSupersampledRect = false;
             if (rect == null)
             {
                 rect = CreateRect(name, rootTransform, anchorMin, anchorMax, offsetMin, offsetMax);
@@ -2523,14 +3111,24 @@ namespace BossRaid
                 rect.offsetMin = offsetMin;
                 rect.offsetMax = offsetMax;
                 text = GetFirstText(rect);
+                shouldExpandSupersampledRect = HasSupersampledTextScale(text);
                 if (text == null)
                 {
                     text = ConfigureText(rect, "", fontSize, color, alignment, style);
+                    shouldExpandSupersampledRect = false;
                 }
             }
 
-            text.fontSize = Mathf.Max(fontSize, MinimumReadablePrefabFontSize);
-            text.resizeTextMaxSize = Mathf.Max(text.resizeTextMaxSize, text.fontSize);
+            if (shouldExpandSupersampledRect)
+            {
+                ExpandRectForSupersampledText(rect);
+            }
+
+            var multiplier = HasSupersampledTextScale(text) ? TextSupersampleMultiplier : 1f;
+            var maxSize = Mathf.Max(1, Mathf.RoundToInt(Mathf.Max(fontSize, MinimumReadablePrefabFontSize) * multiplier));
+            text.fontSize = maxSize;
+            text.resizeTextMaxSize = maxSize;
+            text.resizeTextMinSize = Mathf.Min(text.resizeTextMinSize, maxSize);
             text.alignment = alignment;
             text.fontStyle = style;
             text.color = color;
