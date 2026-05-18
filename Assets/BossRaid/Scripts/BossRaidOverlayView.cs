@@ -1543,7 +1543,8 @@ namespace BossRaid
             {
                 var tile = row.GetChild(i);
                 var label = $"P{i + 1}";
-                var score = i < state.teams.Count ? state.teams[i].score : 0;
+                var player = GetCurrentTeamPlayer(i);
+                var score = player != null ? player.score : 0;
 
                 SetNamedObjectActive(tile, "Idx", true);
                 SetNamedObjectActive(tile, "Name", false);
@@ -1584,6 +1585,17 @@ namespace BossRaid
                     scoreText.resizeTextMaxSize = Mathf.Max(scoreText.resizeTextMaxSize, scoreText.fontSize);
                 }
             }
+        }
+
+        private BossRaidPlayer GetCurrentTeamPlayer(int index)
+        {
+            var team = state.CurrentTeam;
+            if (team == null || team.players == null || index < 0 || index >= team.players.Count)
+            {
+                return null;
+            }
+
+            return team.players[index];
         }
 
         private void ApplyV3BossBar(Transform rootTransform)

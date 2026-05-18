@@ -71,13 +71,26 @@ namespace BossRaid
                 selectedMapId = "aim-1",
                 connectionLabel = "LOCAL PREVIEW",
                 chatStatus = "",
+                scoreSourceStatus = "",
                 chatMessages = new List<BossRaidChatMessage>
                 {
                     new BossRaidChatMessage { time = "00:00:00", sender = "Bridge", message = "Room chat preview", kind = "system" }
                 },
                 teams = new List<BossRaidTeam>
                 {
-                    new BossRaidTeam { id = "team-1", name = "Team A", score = 0, color = new Color(0.95f, 0.25f, 0.2f) },
+                    new BossRaidTeam
+                    {
+                        id = "team-1",
+                        name = "Team A",
+                        score = 0,
+                        color = new Color(0.95f, 0.25f, 0.2f),
+                        players = new List<BossRaidPlayer>
+                        {
+                            new BossRaidPlayer { name = "P1", score = 0 },
+                            new BossRaidPlayer { name = "P2", score = 0 },
+                            new BossRaidPlayer { name = "P3", score = 0 }
+                        }
+                    },
                     new BossRaidTeam { id = "team-2", name = "Team B", score = 0, color = new Color(0.2f, 0.55f, 0.95f) },
                     new BossRaidTeam { id = "team-3", name = "Team C", score = 0, color = new Color(0.25f, 0.85f, 0.45f) },
                     new BossRaidTeam { id = "team-4", name = "Team D", score = 0, color = new Color(0.95f, 0.75f, 0.2f) }
@@ -159,6 +172,11 @@ namespace BossRaid
             state.totalScore = 0;
             for (var i = 0; i < state.teams.Count; i++)
             {
+                if (state.teams[i].players == null)
+                {
+                    state.teams[i].players = new List<BossRaidPlayer>();
+                }
+
                 state.totalScore += Mathf.Max(0, state.teams[i].score);
             }
         }

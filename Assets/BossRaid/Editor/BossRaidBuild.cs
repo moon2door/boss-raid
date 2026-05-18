@@ -6,13 +6,13 @@ namespace BossRaid.Editor
 {
     public static class BossRaidBuild
     {
-        private const string BuildDirectory = "Build/BossRaidOverlay";
+        private const string DefaultBuildDirectory = "Build/BossRaidOverlay";
         private const string ExecutableName = "BossRaidOverlay.exe";
 
         public static void BuildWindows()
         {
             var projectRoot = Directory.GetParent(Application.dataPath).FullName;
-            var outputDirectory = Path.Combine(projectRoot, BuildDirectory);
+            var outputDirectory = Path.Combine(projectRoot, ResolveBuildDirectory());
             Directory.CreateDirectory(outputDirectory);
 
             var outputPath = Path.Combine(outputDirectory, ExecutableName);
@@ -41,6 +41,21 @@ namespace BossRaid.Editor
             }
 
             Debug.Log($"BossRaidOverlay build complete: {outputPath}");
+        }
+
+        private static string ResolveBuildDirectory()
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length - 1; i++)
+            {
+                if (args[i] == "-bossRaidBuildDir" && !string.IsNullOrWhiteSpace(args[i + 1]))
+                {
+                    return args[i + 1];
+                }
+            }
+
+            var env = System.Environment.GetEnvironmentVariable("BOSS_RAID_BUILD_DIR");
+            return string.IsNullOrWhiteSpace(env) ? DefaultBuildDirectory : env;
         }
 
         private static void CopyFileIfExists(string source, string target)

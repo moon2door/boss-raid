@@ -90,10 +90,10 @@ class BossRaidBridge:
             "obsStatus": "OBS DISABLED",
             "chatMessages": [],
             "teams": [
-                {"id": "team-1", "name": "Team A", "score": 0, "color": {"r": 0.95, "g": 0.25, "b": 0.20, "a": 1.0}},
-                {"id": "team-2", "name": "Team B", "score": 0, "color": {"r": 0.20, "g": 0.55, "b": 0.95, "a": 1.0}},
-                {"id": "team-3", "name": "Team C", "score": 0, "color": {"r": 0.25, "g": 0.85, "b": 0.45, "a": 1.0}},
-                {"id": "team-4", "name": "Team D", "score": 0, "color": {"r": 0.95, "g": 0.75, "b": 0.20, "a": 1.0}},
+                {"id": "team-1", "name": "Team A", "score": 0, "color": {"r": 0.95, "g": 0.25, "b": 0.20, "a": 1.0}, "players": []},
+                {"id": "team-2", "name": "Team B", "score": 0, "color": {"r": 0.20, "g": 0.55, "b": 0.95, "a": 1.0}, "players": []},
+                {"id": "team-3", "name": "Team C", "score": 0, "color": {"r": 0.25, "g": 0.85, "b": 0.45, "a": 1.0}, "players": []},
+                {"id": "team-4", "name": "Team D", "score": 0, "color": {"r": 0.95, "g": 0.75, "b": 0.20, "a": 1.0}, "players": []},
             ],
             "mapPool": maps,
             "selectedRoundMapIds": selected_ids,
@@ -161,7 +161,7 @@ class BossRaidBridge:
         print(f"[SETTING] Teams: {len(state.get('teams', []))}", flush=True)
         for team in state.get("teams", []):
             players = team.get("players", [])
-            player_label = ", ".join(players) if players else "-"
+            player_label = ", ".join(self._player_name(player) for player in players) if players else "-"
             print(f"[SETTING]  - {team.get('id')}: {team.get('name')} / players: {player_label}", flush=True)
         print(f"[SETTING] Maps : {len(state.get('mapPool', []))}", flush=True)
         print("[SETTING] Modes: " + (", ".join(f"{mode}({count})" for mode, count in modes.items()) or "-"), flush=True)
@@ -196,12 +196,58 @@ class BossRaidBridge:
                 "name": str(team.get("name", f"Team {index + 1}"))[:32],
                 "score": self._to_int(team.get("score", 0), 0),
                 "color": self._sanitize_color(team.get("color")),
+                "players": [],
             }
             players = team.get("players")
             if isinstance(players, list):
-                sanitized_team["players"] = [str(player)[:32] for player in players[:8]]
+                sanitized_team["players"] = self._sanitize_players(players)
             sanitized.append(sanitized_team)
         return sanitized or self._default_state()["teams"]
+
+    def _sanitize_players(self, players):
+        sanitized = []
+        if not isinstance(players, list):
+            return sanitized
+
+        for index, player in enumerate(players[:16]):
+            if isinstance(player, dict):
+                name = str(player.get("name", player.get("playerName", f"P{index + 1}"))).strip() or f"P{index + 1}"
+                combo = player.get("combo", 0)
+                if isinstance(combo, dict):
+                    max_combo = self._to_int(combo.get("max", combo.get("current", 0)), 0)
+                    combo = combo.get("current", 0)
+                else:
+                    max_combo = self._to_int(player.get("maxCombo", 0), 0)
+
+                sanitized.append(
+                    {
+                        "name": name[:32],
+                        "score": self._to_int(player.get("score", 0), 0),
+                        "accuracy": self._to_float(player.get("accuracy", 0.0), 0.0),
+                        "combo": self._to_int(combo, 0),
+                        "maxCombo": max_combo,
+                        "misses": self._to_int(player.get("misses", player.get("miss", 0)), 0),
+                        "team": str(player.get("team", ""))[:12],
+                        "ipcId": self._to_int(player.get("ipcId", -1), -1),
+                    }
+                )
+            else:
+                name = str(player).strip()
+                if name:
+                    sanitized.append(
+                        {
+                            "name": name[:32],
+                            "score": 0,
+                            "accuracy": 0.0,
+                            "combo": 0,
+                            "maxCombo": 0,
+                            "misses": 0,
+                            "team": "",
+                            "ipcId": -1,
+                        }
+                    )
+
+        return sanitized
 
     def _sanitize_maps(self, maps):
         sanitized = []
@@ -285,6 +331,7 @@ class BossRaidBridge:
         total = 0
         for team in state.get("teams", []):
             team["score"] = self._to_int(team.get("score", 0), 0)
+            team["players"] = self._sanitize_players(team.get("players", []))
             total += max(0, team["score"])
         state["totalScore"] = total
 
@@ -434,6 +481,101 @@ class BossRaidBridge:
         if changed:
             self.broadcast()
         return changed
+
+    def apply_tosu_tourney_state(self, tourney, team_ids=None, allowed_screens=None):
+        if not isinstance(tourney, dict):
+            return False
+
+        clients = tourney.get("clients", [])
+        if not isinstance(clients, list):
+            clients = []
+
+        allowed = {str(screen) for screen in allowed_screens or [] if str(screen)}
+        with self.lock:
+            if allowed and self.state.get("screen") not in allowed:
+                status = f"TOSU READY ({len(clients)} clients)"[:80]
+                changed = self.state.get("scoreSourceStatus") != status
+                if changed:
+                    self.state["scoreSourceStatus"] = status
+                    self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+            else:
+                changed = self._apply_tosu_tourney_locked(tourney, clients, team_ids or [])
+
+        if changed:
+            self.broadcast()
+        return changed
+
+    def _apply_tosu_tourney_locked(self, tourney, clients, team_ids):
+        teams = self.state.get("teams", [])
+        side_to_team = {}
+        configured_ids = [str(team_id).strip() for team_id in team_ids or [] if str(team_id).strip()]
+        if configured_ids:
+            if len(configured_ids) > 0:
+                side_to_team["left"] = self._team(configured_ids[0])
+            if len(configured_ids) > 1:
+                side_to_team["right"] = self._team(configured_ids[1])
+
+        if side_to_team.get("left") is None and len(teams) > 0:
+            side_to_team["left"] = teams[0]
+        if side_to_team.get("right") is None and len(teams) > 1:
+            side_to_team["right"] = teams[1]
+
+        grouped_players = {"left": [], "right": []}
+        for client in sorted(clients, key=lambda item: self._to_int(item.get("ipcId", 9999) if isinstance(item, dict) else 9999, 9999)):
+            if not isinstance(client, dict):
+                continue
+            side = str(client.get("team", "")).lower()
+            if side not in grouped_players:
+                continue
+            grouped_players[side].append(self._tosu_client_to_player(client))
+
+        total_score = tourney.get("totalScore", {})
+        if not isinstance(total_score, dict):
+            total_score = {}
+
+        changed = False
+        for side in ("left", "right"):
+            team = side_to_team.get(side)
+            if team is None:
+                continue
+
+            players = grouped_players.get(side, [])
+            fallback_total = sum(max(0, self._to_int(player.get("score", 0), 0)) for player in players)
+            next_score = self._to_int(total_score.get(side, fallback_total), fallback_total)
+            if team.get("score") != next_score:
+                team["score"] = next_score
+                changed = True
+
+            if players and team.get("players") != players:
+                team["players"] = players
+                changed = True
+
+        status = f"TOSU LIVE ({len(clients)} clients)"[:80]
+        if self.state.get("scoreSourceStatus") != status:
+            self.state["scoreSourceStatus"] = status
+            changed = True
+
+        if changed:
+            self._normalize_locked()
+            self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+        return changed
+
+    def _tosu_client_to_player(self, client):
+        user = client.get("user", {}) if isinstance(client.get("user"), dict) else {}
+        play = client.get("play", {}) if isinstance(client.get("play"), dict) else {}
+        combo = play.get("combo", {}) if isinstance(play.get("combo"), dict) else {}
+        hits = play.get("hits", {}) if isinstance(play.get("hits"), dict) else {}
+        name = str(user.get("name") or play.get("playerName") or f"P{self._to_int(client.get('ipcId', 0), 0) + 1}").strip()
+        return {
+            "name": name[:32],
+            "score": self._to_int(play.get("score", 0), 0),
+            "accuracy": self._to_float(play.get("accuracy", 0.0), 0.0),
+            "combo": self._to_int(combo.get("current", 0), 0),
+            "maxCombo": self._to_int(combo.get("max", 0), 0),
+            "misses": self._to_int(hits.get("0", 0), 0),
+            "team": str(client.get("team", ""))[:12],
+            "ipcId": self._to_int(client.get("ipcId", -1), -1),
+        }
 
     def add_chat_message(self, sender, message, kind="chat"):
         sender = str(sender or "system")[:32]
@@ -736,6 +878,13 @@ class BossRaidBridge:
         self.state["selectedMapId"] = ""
         for team in self.state["teams"]:
             team["score"] = 0
+            for player in team.get("players", []):
+                if isinstance(player, dict):
+                    player["score"] = 0
+                    player["accuracy"] = 0.0
+                    player["combo"] = 0
+                    player["maxCombo"] = 0
+                    player["misses"] = 0
 
     def _load_maps_locked(self, maps):
         next_maps = self._sanitize_maps(maps)
@@ -780,6 +929,12 @@ class BossRaidBridge:
             return float(value)
         except (TypeError, ValueError):
             return fallback
+
+    @staticmethod
+    def _player_name(player):
+        if isinstance(player, dict):
+            return str(player.get("name", "")).strip() or "-"
+        return str(player).strip() or "-"
 
 
 def load_bridge_config():
@@ -878,6 +1033,37 @@ def load_tourney_ipc_config(config=None):
         "pollSeconds": poll_ms / 1000,
         "teamIds": team_ids,
         "updateScreens": update_screens,
+    }
+
+
+def load_tosu_config(config=None):
+    config = config if isinstance(config, dict) else load_bridge_config()
+    if not isinstance(config, dict):
+        return None
+
+    enabled = bool(config.get("tosuEnabled", False))
+    if not enabled:
+        print("[TOSU] tosu disabled. Set tosuEnabled=true in API.Json to read live tournament player scores.", flush=True)
+        return None
+
+    team_ids = config.get("tosuTeamIds", [])
+    if isinstance(team_ids, list):
+        team_ids = [str(team_id).strip() for team_id in team_ids if str(team_id).strip()]
+    else:
+        team_ids = []
+
+    update_screens = config.get("tosuUpdateScreens", config.get("tourneyIpcUpdateScreens", ["inGame"]))
+    if isinstance(update_screens, list):
+        update_screens = [str(screen).strip() for screen in update_screens if str(screen).strip()]
+    else:
+        update_screens = ["inGame"]
+
+    reconnect_seconds = max(1, BossRaidBridge._to_int(config.get("tosuReconnectSeconds", 5), 5))
+    return {
+        "url": str(config.get("tosuWebSocketUrl", "ws://127.0.0.1:24050/websocket/v2")).strip() or "ws://127.0.0.1:24050/websocket/v2",
+        "teamIds": team_ids,
+        "updateScreens": update_screens,
+        "reconnectSeconds": reconnect_seconds,
     }
 
 
@@ -1068,6 +1254,130 @@ class TourneyIpcScoreClient:
             except ValueError:
                 continue
         return scores
+
+
+class TosuTourneyScoreClient:
+    def __init__(self, bridge, config):
+        self.bridge = bridge
+        self.config = config
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.sock = None
+        self.last_status = ""
+
+    def start(self):
+        if self.thread is not None:
+            return
+        self.thread = threading.Thread(target=self._run, name="TosuTourneyScoreClient", daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        if self.sock is not None:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
+                self.sock.close()
+            except OSError:
+                pass
+        if self.thread is not None:
+            self.thread.join(timeout=2.0)
+
+    def _run(self):
+        reconnect_seconds = float(self.config.get("reconnectSeconds", 5))
+        while not self.stop_event.is_set():
+            try:
+                self._connect()
+                self._set_status("TOSU CONNECTED")
+                self._read_loop()
+            except Exception as exc:
+                if self.stop_event.is_set():
+                    break
+                self._close_socket()
+                status = f"TOSU RETRYING: {type(exc).__name__}"
+                print(f"[TOSU] {status}: {exc}", flush=True)
+                self._set_status(status)
+                self.stop_event.wait(reconnect_seconds)
+
+    def _connect(self):
+        self._close_socket()
+        parsed = urlparse(self.config.get("url", "ws://127.0.0.1:24050/websocket/v2"))
+        if parsed.scheme not in ("ws", ""):
+            raise ValueError("only ws:// tosu WebSocket URLs are supported")
+
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 24050
+        path = parsed.path or "/websocket/v2"
+        if parsed.query:
+            path += "?" + parsed.query
+
+        print(f"[TOSU] Connecting to ws://{host}:{port}{path}", flush=True)
+        sock_obj = socket.create_connection((host, port), timeout=5)
+        sock_obj.settimeout(10)
+        key = base64.b64encode(os.urandom(16)).decode("ascii")
+        request = (
+            f"GET {path} HTTP/1.1\r\n"
+            f"Host: {host}:{port}\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            f"Sec-WebSocket-Key: {key}\r\n"
+            "Sec-WebSocket-Version: 13\r\n"
+            "\r\n"
+        )
+        sock_obj.sendall(request.encode("ascii"))
+        response = ObsWebSocketVisibilityClient._read_http_response(sock_obj)
+        if " 101 " not in response.split("\r\n", 1)[0]:
+            raise ConnectionError(response.split("\r\n", 1)[0])
+        self.sock = sock_obj
+
+    def _read_loop(self):
+        while not self.stop_event.is_set():
+            opcode, payload = read_ws_frame(self.sock)
+            if opcode is None:
+                raise ConnectionError("tosu socket closed")
+            if opcode == 8:
+                raise ConnectionError("tosu closed websocket")
+            if opcode == 9:
+                send_ws_client_frame(self.sock, 10, payload)
+                continue
+            if opcode not in (1, 2) or not payload:
+                continue
+
+            data = json.loads(payload.decode("utf-8"))
+            tourney = data.get("tourney") if isinstance(data, dict) else None
+            if not isinstance(tourney, dict):
+                self._set_status("TOSU NO TOURNEY")
+                continue
+
+            clients = tourney.get("clients", [])
+            if not isinstance(clients, list) or not clients:
+                self._set_status("TOSU TOURNEY EMPTY")
+                continue
+
+            self.bridge.apply_tosu_tourney_state(
+                tourney,
+                team_ids=self.config.get("teamIds", []),
+                allowed_screens=self.config.get("updateScreens", []),
+            )
+
+    def _set_status(self, status):
+        status = str(status or "")[:80]
+        if status == self.last_status:
+            return
+        self.last_status = status
+        print(f"[TOSU] {status}", flush=True)
+        self.bridge.set_score_source_status(status)
+
+    def _close_socket(self):
+        if self.sock is None:
+            return
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+        self.sock = None
 
 
 class ObsWebSocketVisibilityClient:
@@ -2289,6 +2599,7 @@ def run_server(host=HOST, port=PORT):
     server = ThreadingHTTPServer((host, port), BridgeRequestHandler)
     irc_client = None
     score_client = None
+    tosu_client = None
     obs_client = None
     bridge_config = load_bridge_config()
     api_config = load_api_config(bridge_config)
@@ -2297,10 +2608,15 @@ def run_server(host=HOST, port=PORT):
         BRIDGE.set_irc_client(irc_client)
         irc_client.start()
 
-    score_config = load_tourney_ipc_config(bridge_config)
-    if score_config is not None:
-        score_client = TourneyIpcScoreClient(BRIDGE, score_config)
-        score_client.start()
+    tosu_config = load_tosu_config(bridge_config)
+    if tosu_config is not None:
+        tosu_client = TosuTourneyScoreClient(BRIDGE, tosu_config)
+        tosu_client.start()
+    else:
+        score_config = load_tourney_ipc_config(bridge_config)
+        if score_config is not None:
+            score_client = TourneyIpcScoreClient(BRIDGE, score_config)
+            score_client.start()
 
     obs_config = load_obs_websocket_config(bridge_config)
     if obs_config is not None:
@@ -2325,6 +2641,8 @@ def run_server(host=HOST, port=PORT):
             irc_client.stop()
         if score_client is not None:
             score_client.stop()
+        if tosu_client is not None:
+            tosu_client.stop()
         if obs_client is not None:
             obs_client.stop()
         BRIDGE.set_irc_client(None)
@@ -2357,13 +2675,29 @@ def self_test():
     assert bridge.snapshot()["teams"][0]["score"] == 123456
     assert bridge.snapshot()["teams"][1]["score"] == 234567
     assert bridge.snapshot()["totalScore"] == 358023
+    assert bridge.apply_tosu_tourney_state(
+        {
+            "totalScore": {"left": 300000, "right": 120000},
+            "clients": [
+                {"ipcId": 0, "team": "left", "user": {"name": "P1"}, "play": {"score": 100000, "accuracy": 98.5, "combo": {"current": 120, "max": 200}, "hits": {"0": 1}}},
+                {"ipcId": 1, "team": "left", "user": {"name": "P2"}, "play": {"score": 200000, "accuracy": 99.1, "combo": {"current": 180, "max": 240}, "hits": {"0": 0}}},
+                {"ipcId": 3, "team": "right", "user": {"name": "R1"}, "play": {"score": 120000, "accuracy": 97.0, "combo": {"current": 90, "max": 150}, "hits": {"0": 2}}},
+            ],
+        },
+        team_ids=["team-1", "team-2"],
+        allowed_screens=["inGame"],
+    )
+    assert bridge.snapshot()["teams"][0]["score"] == 300000
+    assert bridge.snapshot()["teams"][0]["players"][0]["score"] == 100000
+    assert bridge.snapshot()["teams"][0]["players"][1]["name"] == "P2"
+    assert bridge.snapshot()["teams"][1]["score"] == 120000
     bridge.apply_command({"type": "ready_map"})
     assert bridge.auto_start_map_if_ready()
     assert bridge.snapshot()["screen"] == "inGame"
     assert not bridge.auto_start_map_if_ready()
     bridge.apply_command({"type": "set_screen", "screen": "standby"})
     assert not bridge.apply_external_scores([1, 2], team_ids=["team-1", "team-2"], allowed_screens=["inGame"])
-    assert bridge.snapshot()["teams"][0]["score"] == 123456
+    assert bridge.snapshot()["teams"][0]["score"] == 300000
     bridge.apply_command({"type": "next_round"})
     assert bridge.snapshot()["screen"] == "difficultySelect"
     assert bridge.snapshot()["selectedMode"] == ""

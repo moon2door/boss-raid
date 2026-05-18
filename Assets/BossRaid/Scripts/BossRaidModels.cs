@@ -27,6 +27,7 @@ namespace BossRaid
         public string resultMessage = "";
         public string connectionLabel = "LOCAL PREVIEW";
         public string chatStatus = "";
+        public string scoreSourceStatus = "";
         public List<BossRaidTeam> teams = new List<BossRaidTeam>();
         public List<BossRaidMap> mapPool = new List<BossRaidMap>();
         public List<string> selectedRoundMapIds = new List<string>();
@@ -89,6 +90,20 @@ namespace BossRaid
         public string name;
         public int score;
         public Color color = Color.white;
+        public List<BossRaidPlayer> players = new List<BossRaidPlayer>();
+    }
+
+    [Serializable]
+    public class BossRaidPlayer
+    {
+        public string name;
+        public int score;
+        public float accuracy;
+        public int combo;
+        public int maxCombo;
+        public int misses;
+        public string team;
+        public int ipcId = -1;
     }
 
     [Serializable]
