@@ -34,6 +34,19 @@ SETTING_PATH = PROJECT_ROOT / "Setting.Json"
 API_PATH = PROJECT_ROOT / "API.Json"
 
 
+def normalize_mp_command(message):
+    text = str(message or "").replace("\r", " ").replace("\n", " ").strip()
+    text = re.sub(r"\s+", " ", text)
+    if len(text) > 220:
+        text = text[:220].rstrip()
+
+    if text[:3].lower() != "!mp":
+        return ""
+    if len(text) > 3 and not text[3].isspace():
+        return ""
+    return text
+
+
 class BossRaidBridge:
     def __init__(self, load_settings=True):
         self.lock = threading.RLock()
@@ -751,12 +764,25 @@ class BossRaidBridge:
 
         irc_client.queue_mp_setup(setup)
 
+    def request_mp_command(self, message):
+        irc_client = None
+        with self.lock:
+            irc_client = self.irc_client
+
+        if irc_client is None:
+            self.add_chat_message("Bridge", "Manual MP command skipped: IRC client is unavailable. Check API.Json.", "system")
+            print("[MP BOT] Cannot send manual command: IRC client is not available.", flush=True)
+            return False
+
+        return irc_client.send_manual_mp_command(message)
+
     def apply_command(self, command):
         if not isinstance(command, dict):
             raise ValueError("command must be a json object")
 
         command_type = command.get("type", "")
         mp_setup_request = None
+        mp_command_request = None
         previous_screen = None
         next_screen = None
         with self.lock:
@@ -855,6 +881,10 @@ class BossRaidBridge:
                     self._load_maps_locked(maps)
             elif command_type == "send_mp_setup":
                 mp_setup_request = self._build_mp_setup_locked()
+            elif command_type == "send_mp_command":
+                mp_command_request = normalize_mp_command(command.get("message", ""))
+                if not mp_command_request:
+                    raise ValueError("message must be a !mp command")
             elif command_type == "clear_chat":
                 self.state["chatMessages"] = []
             elif command_type == "add_chat_message":
@@ -883,6 +913,8 @@ class BossRaidBridge:
             self._notify_screen_changed(next_screen)
         if mp_setup_request is not None:
             self.request_mp_setup(mp_setup_request)
+        if mp_command_request is not None:
+            self.request_mp_command(mp_command_request)
         return self.snapshot()
 
     def _normalize_locked(self):
@@ -2105,6 +2137,22 @@ class BanchoIrcChatClient:
             screen = self.bridge.snapshot().get("screen", "")
             print(f"[MP BOT] Auto in-game skipped because screen is {screen}.", flush=True)
 
+    def send_manual_mp_command(self, message):
+        command = normalize_mp_command(message)
+        if not command:
+            self.bridge.add_chat_message("Bridge", "Manual MP command skipped: type a !mp command.", "system")
+            return False
+
+        if not self.connected:
+            print(f"[MP BOT] Cannot send manual command before IRC room chat is connected: {command}", flush=True)
+            self.bridge.add_chat_message("Bridge", "Manual MP command skipped: IRC room chat is not connected.", "system")
+            return False
+
+        if self.send_channel_message(command):
+            self.bridge.add_chat_message("Bridge", f"Sent manual MP command: {command}", "system")
+            return True
+        return False
+
     def send_channel_message(self, message):
         if not self.connected:
             print(f"[MP BOT] Cannot send before IRC room chat is connected: {message}", flush=True)
@@ -2512,6 +2560,8 @@ INDEX_HTML = r"""<!doctype html>
     }
     .chat-line strong { color: #58c8ff; }
     .chat-line time { color: #94a3b8; font-size: 11px; margin-right: 8px; }
+    .mp-command { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 8px; }
+    #mpCommand { font-family: Consolas, monospace; }
     a { color: #58c8ff; }
     textarea { min-height: 240px; resize: vertical; font-family: Consolas, monospace; font-size: 12px; }
     label { display: block; color: #aeb9c8; font-size: 12px; font-weight: 700; margin: 8px 0 5px; }
@@ -2560,6 +2610,11 @@ INDEX_HTML = r"""<!doctype html>
         <button onclick="cmd('add_chat_message', {sender:'Bridge', message:'Chat test message'})">Test Chat</button>
         <button onclick="cmd('clear_chat')">Clear Chat</button>
       </div>
+      <label>Manual !mp Command</label>
+      <div class="mp-command">
+        <input id="mpCommand" placeholder="!mp aborttimer" autocomplete="off" onkeydown="handleMpCommandKey(event)">
+        <button class="primary" onclick="sendMpCommand()">Send</button>
+      </div>
     </section>
 
     <section>
@@ -2605,6 +2660,7 @@ INDEX_HTML = r"""<!doctype html>
       });
       const payload = await response.json();
       if (!payload.ok) alert(payload.error || 'Command failed');
+      return payload;
     }
 
     function confirmReset() {
@@ -2631,6 +2687,21 @@ INDEX_HTML = r"""<!doctype html>
       } catch (error) {
         alert(error.message);
       }
+    }
+
+    async function sendMpCommand() {
+      const input = document.getElementById('mpCommand');
+      const message = input ? input.value.trim() : '';
+      if (!message) return;
+
+      const payload = await cmd('send_mp_command', {message});
+      if (payload && payload.ok && input) input.value = '';
+    }
+
+    function handleMpCommandKey(event) {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      sendMpCommand();
     }
 
     function render() {
@@ -2884,10 +2955,15 @@ def self_test():
     assert BanchoIrcChatClient._build_mp_mods("HR") == "NF HR"
     assert BanchoIrcChatClient._build_mp_mods("DT") == "NF DT"
     assert BanchoIrcChatClient._is_all_ready_message("all players are ready")
+    assert normalize_mp_command(" !mp start 5\n") == "!mp start 5"
+    assert normalize_mp_command("!mpabort") == ""
+    assert normalize_mp_command("hello") == ""
     irc = BanchoIrcChatClient(bridge, {"server": "irc.ppy.sh", "port": 6667, "username": "Tester", "password": "secret", "channel": "#mp_1"})
     irc._mark_connected("TEST")
     assert bridge.snapshot()["chatStatus"] == "IRC CONNECTED #mp_1"
     assert bridge.snapshot()["chatMessages"][-1]["message"] == "Connected to room chat #mp_1"
+    assert irc.send_manual_mp_command(" !mp aborttimer\n")
+    assert bridge.snapshot()["chatMessages"][-1]["message"] == "Sent manual MP command: !mp aborttimer"
     print("Bridge self-test passed.")
 
 

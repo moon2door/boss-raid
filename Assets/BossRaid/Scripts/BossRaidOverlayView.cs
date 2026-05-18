@@ -3386,8 +3386,7 @@ namespace BossRaid
                 }
 
                 var kind = CleanChatText(item.kind);
-                if (!string.Equals(kind, "chat", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(kind, "bancho", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(kind, "chat", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -3399,11 +3398,16 @@ namespace BossRaid
                 }
 
                 var sender = CleanChatText(item.sender);
+                if (IsHiddenChatSender(sender) || IsHiddenChatMessage(message))
+                {
+                    continue;
+                }
+
                 candidates.Add(new RoomChatLine
                 {
                     sender = FormatRoomChatSender(sender, kind),
                     message = message,
-                    color = string.Equals(kind, "bancho", StringComparison.OrdinalIgnoreCase) ? Gold : Magenta
+                    color = Magenta
                 });
             }
 
@@ -3430,7 +3434,8 @@ namespace BossRaid
         private static bool IsHiddenChatSender(string sender)
         {
             return string.Equals(sender, "Bridge", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(sender, "BanchoBot", StringComparison.OrdinalIgnoreCase);
+                || string.Equals(sender, "BanchoBot", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(sender, "Bancho Bot", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsHiddenChatMessage(string message)

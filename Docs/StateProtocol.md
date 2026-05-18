@@ -99,6 +99,7 @@ Supported command types:
 - `complete_mode_roulette`, with `mode`
 - `complete_map_roulette`, with `mapId`
 - `send_mp_setup`
+- `send_mp_command`, with `message` starting with `!mp`
 - `ready_map`
 - `start_map`
 - `finish_map`
