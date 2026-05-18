@@ -672,8 +672,11 @@ namespace BossRaid
         {
             var state = stateStore.Current;
             state.roundIndex = Mathf.Clamp(state.roundIndex + 1, 0, 7);
+            state.screen = BossRaidScreens.DifficultySelect;
             state.lastResult = BossRaidResults.None;
             state.resultMessage = "";
+            state.selectedMode = "";
+            state.selectedMapId = "";
             for (var i = 0; i < state.teams.Count; i++)
             {
                 state.teams[i].score = 0;
@@ -682,7 +685,6 @@ namespace BossRaid
             Bump(state);
             ApplyLocalState(state);
             SendCommand("next_round");
-            SpinPreviewMode();
         }
 
         private void ApplyLocalState(BossRaidState state, float holdIncomingSeconds = 0.45f)

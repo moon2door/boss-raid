@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import json
+import os
 import random
 import re
 import socket
@@ -38,6 +39,7 @@ class BossRaidBridge:
         self.lock = threading.RLock()
         self.clients = set()
         self.irc_client = None
+        self.screen_listeners = []
         self.state = self._state_from_setting() if load_settings else self._default_state()
 
     def _default_state(self):
@@ -84,6 +86,8 @@ class BossRaidBridge:
             "resultMessage": "",
             "connectionLabel": "BRIDGE ONLINE",
             "chatStatus": "IRC DISABLED",
+            "scoreSourceStatus": "TOURNEY IPC DISABLED",
+            "obsStatus": "OBS DISABLED",
             "chatMessages": [],
             "teams": [
                 {"id": "team-1", "name": "Team A", "score": 0, "color": {"r": 0.95, "g": 0.25, "b": 0.20, "a": 1.0}},
@@ -289,6 +293,10 @@ class BossRaidBridge:
 
         if "chatStatus" not in state:
             state["chatStatus"] = "IRC DISABLED"
+        if "scoreSourceStatus" not in state:
+            state["scoreSourceStatus"] = "TOURNEY IPC DISABLED"
+        if "obsStatus" not in state:
+            state["obsStatus"] = "OBS DISABLED"
         if not isinstance(state.get("chatMessages"), list):
             state["chatMessages"] = []
         del state["chatMessages"][:-30]
@@ -337,11 +345,95 @@ class BossRaidBridge:
             except OSError:
                 pass
 
+    def add_screen_listener(self, listener):
+        with self.lock:
+            if listener not in self.screen_listeners:
+                self.screen_listeners.append(listener)
+
+    def remove_screen_listener(self, listener):
+        with self.lock:
+            if listener in self.screen_listeners:
+                self.screen_listeners.remove(listener)
+
+    def _notify_screen_changed(self, screen):
+        with self.lock:
+            listeners = list(self.screen_listeners)
+        for listener in listeners:
+            try:
+                listener(screen)
+            except Exception as exc:
+                print(f"[BRIDGE] Screen listener failed: {exc}", flush=True)
+
     def set_chat_status(self, status):
         with self.lock:
             self.state["chatStatus"] = str(status)[:80]
             self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
         self.broadcast()
+
+    def set_score_source_status(self, status):
+        status = str(status or "")[:80]
+        with self.lock:
+            if self.state.get("scoreSourceStatus") == status:
+                return
+            self.state["scoreSourceStatus"] = status
+            self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+        self.broadcast()
+
+    def set_obs_status(self, status):
+        status = str(status or "")[:80]
+        with self.lock:
+            if self.state.get("obsStatus") == status:
+                return
+            self.state["obsStatus"] = status
+            self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+        self.broadcast()
+
+    def apply_external_scores(self, scores, source_label="Tourney IPC", team_ids=None, allowed_screens=None):
+        if not isinstance(scores, list):
+            return False
+
+        source_label = str(source_label or "Score Source")[:32]
+        allowed = {str(screen) for screen in allowed_screens or [] if str(screen)}
+        with self.lock:
+            if allowed and self.state.get("screen") not in allowed:
+                self.state["scoreSourceStatus"] = f"{source_label} READY ({len(scores)} scores)"[:80]
+                return False
+
+            teams = self.state.get("teams", [])
+            changed = False
+
+            if team_ids:
+                for index, raw_score in enumerate(scores):
+                    if index >= len(team_ids):
+                        break
+                    team = self._team(str(team_ids[index]))
+                    if team is None:
+                        continue
+                    next_score = self._to_int(raw_score, 0)
+                    if team.get("score") != next_score:
+                        team["score"] = next_score
+                        changed = True
+            else:
+                for index, raw_score in enumerate(scores):
+                    if index >= len(teams):
+                        break
+                    next_score = self._to_int(raw_score, 0)
+                    if teams[index].get("score") != next_score:
+                        teams[index]["score"] = next_score
+                        changed = True
+
+            next_status = f"{source_label} LIVE ({len(scores)} scores)"[:80]
+            if self.state.get("scoreSourceStatus") != next_status:
+                self.state["scoreSourceStatus"] = next_status
+                changed = True
+
+            if changed:
+                self._normalize_locked()
+                self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+
+        if changed:
+            self.broadcast()
+        return changed
 
     def add_chat_message(self, sender, message, kind="chat"):
         sender = str(sender or "system")[:32]
@@ -362,6 +454,21 @@ class BossRaidBridge:
             del messages[:-30]
             self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
         self.broadcast()
+
+    def auto_start_map_if_ready(self):
+        with self.lock:
+            if self.state.get("screen") != "mapReady":
+                return False
+
+            self.state["screen"] = "inGame"
+            self.state["lastResult"] = "none"
+            self.state["resultMessage"] = ""
+            self._normalize_locked()
+            self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+
+        self.broadcast()
+        self._notify_screen_changed("inGame")
+        return True
 
     def set_irc_client(self, irc_client):
         with self.lock:
@@ -385,7 +492,10 @@ class BossRaidBridge:
 
         command_type = command.get("type", "")
         mp_setup_request = None
+        previous_screen = None
+        next_screen = None
         with self.lock:
+            previous_screen = self.state.get("screen", "")
             if command_type == "reset_event":
                 self.state = self._state_from_setting()
             elif command_type == "reload_settings":
@@ -501,8 +611,11 @@ class BossRaidBridge:
 
             self._normalize_locked()
             self.state["animationNonce"] = int(self.state.get("animationNonce", 0)) + 1
+            next_screen = self.state.get("screen", "")
 
         self.broadcast()
+        if next_screen != previous_screen:
+            self._notify_screen_changed(next_screen)
         if mp_setup_request is not None:
             self.request_mp_setup(mp_setup_request)
         return self.snapshot()
@@ -616,9 +729,10 @@ class BossRaidBridge:
 
     def _next_round_locked(self):
         self.state["roundIndex"] = min(7, int(self.state.get("roundIndex", 0)) + 1)
-        self.state["screen"] = "rouletteMode"
+        self.state["screen"] = "difficultySelect"
         self.state["lastResult"] = "none"
         self.state["resultMessage"] = ""
+        self.state["selectedMode"] = ""
         self.state["selectedMapId"] = ""
         for team in self.state["teams"]:
             team["score"] = 0
@@ -668,9 +782,9 @@ class BossRaidBridge:
             return fallback
 
 
-def load_api_config():
+def load_bridge_config():
     if not API_PATH.exists():
-        print(f"[API] Missing {API_PATH}. IRC chat is disabled.", flush=True)
+        print(f"[API] Missing {API_PATH}. IRC chat, tourney IPC, and OBS automation are disabled.", flush=True)
         return None
 
     try:
@@ -684,6 +798,14 @@ def load_api_config():
         print(f"[API] Failed to read {API_PATH}: root must be a JSON object", flush=True)
         return None
 
+    return config
+
+
+def load_api_config(config=None):
+    config = config if isinstance(config, dict) else load_bridge_config()
+    if not isinstance(config, dict):
+        return None
+
     enabled = bool(config.get("enabled", False))
     username = str(config.get("ircUsername", "")).strip()
     password = str(config.get("ircPassword", "")).strip()
@@ -694,6 +816,8 @@ def load_api_config():
     command_bot_enabled = bool(config.get("commandBotEnabled", True))
     timer_seconds = max(5, BossRaidBridge._to_int(config.get("mpTimerSeconds", 90), 90))
     start_delay_seconds = max(1, BossRaidBridge._to_int(config.get("mpStartDelaySeconds", 5), 5))
+    auto_in_game_after_start = bool(config.get("mpAutoInGameAfterStart", True))
+    auto_in_game_extra_delay_seconds = max(0.0, BossRaidBridge._to_float(config.get("mpAutoInGameExtraDelaySeconds", 0.5), 0.5))
     ready_reminder_message = str(config.get("readyReminderMessage", "모두 준비를 눌러주세요.")).strip() or "모두 준비를 눌러주세요."
 
     if not enabled:
@@ -708,7 +832,7 @@ def load_api_config():
         channel = "#" + channel
 
     print(f"[API] IRC chat enabled. Server={server}:{port}, user={username.replace(' ', '_')}, channel={channel}, rawLog={debug_raw_irc}", flush=True)
-    print(f"[API] MP command bot: {'enabled' if command_bot_enabled else 'disabled'}, timer={timer_seconds}s, start={start_delay_seconds}s", flush=True)
+    print(f"[API] MP command bot: {'enabled' if command_bot_enabled else 'disabled'}, timer={timer_seconds}s, start={start_delay_seconds}s, autoInGame={auto_in_game_after_start}", flush=True)
     return {
         "server": server,
         "port": port,
@@ -719,8 +843,532 @@ def load_api_config():
         "commandBotEnabled": command_bot_enabled,
         "mpTimerSeconds": timer_seconds,
         "mpStartDelaySeconds": start_delay_seconds,
+        "mpAutoInGameAfterStart": auto_in_game_after_start,
+        "mpAutoInGameExtraDelaySeconds": auto_in_game_extra_delay_seconds,
         "readyReminderMessage": ready_reminder_message[:120],
     }
+
+
+def load_tourney_ipc_config(config=None):
+    config = config if isinstance(config, dict) else load_bridge_config()
+    if not isinstance(config, dict):
+        return None
+
+    enabled = bool(config.get("tourneyIpcEnabled", False))
+    if not enabled:
+        print("[SCORE IPC] Tourney IPC disabled. Set tourneyIpcEnabled=true in API.Json to read osu! tournament scores.", flush=True)
+        return None
+
+    poll_ms = max(50, BossRaidBridge._to_int(config.get("tourneyIpcPollMs", 250), 250))
+    team_ids = config.get("tourneyIpcTeamIds", [])
+    if isinstance(team_ids, list):
+        team_ids = [str(team_id).strip() for team_id in team_ids if str(team_id).strip()]
+    else:
+        team_ids = []
+
+    update_screens = config.get("tourneyIpcUpdateScreens", ["inGame"])
+    if isinstance(update_screens, list):
+        update_screens = [str(screen).strip() for screen in update_screens if str(screen).strip()]
+    else:
+        update_screens = ["inGame"]
+
+    return {
+        "path": str(config.get("tourneyIpcPath", "")).strip(),
+        "scoreFile": str(config.get("tourneyIpcScoreFile", "ipc-scores.txt")).strip() or "ipc-scores.txt",
+        "pollSeconds": poll_ms / 1000,
+        "teamIds": team_ids,
+        "updateScreens": update_screens,
+    }
+
+
+def load_obs_websocket_config(config=None):
+    config = config if isinstance(config, dict) else load_bridge_config()
+    if not isinstance(config, dict):
+        return None
+
+    enabled = bool(config.get("obsWebSocketEnabled", False))
+    if not enabled:
+        print("[OBS] OBS WebSocket automation disabled. Set obsWebSocketEnabled=true in API.Json to control spectator sources.", flush=True)
+        return None
+
+    sources = config.get("obsSpectatorSources", [])
+    if isinstance(sources, str):
+        sources = [sources]
+    if isinstance(sources, list):
+        sources = [str(source).strip() for source in sources if str(source).strip()]
+    else:
+        sources = []
+
+    screen_sources = {}
+    raw_screen_sources = config.get("obsSpectatorScreenSources", {})
+    if isinstance(raw_screen_sources, dict):
+        for screen, screen_source_list in raw_screen_sources.items():
+            screen_name = str(screen).strip()
+            if not screen_name:
+                continue
+            if isinstance(screen_source_list, str):
+                screen_source_list = [screen_source_list]
+            if isinstance(screen_source_list, list):
+                screen_sources[screen_name] = [str(source).strip() for source in screen_source_list if str(source).strip()]
+
+    if not sources and not any(screen_sources.values()):
+        print("[OBS] OBS automation disabled. Fill obsSpectatorSources or obsSpectatorScreenSources in API.Json.", flush=True)
+        return None
+
+    visible_screens = config.get("obsSpectatorVisibleScreens", ["mapReady", "inGame"])
+    if isinstance(visible_screens, list):
+        visible_screens = [str(screen).strip() for screen in visible_screens if str(screen).strip()]
+    else:
+        visible_screens = ["mapReady", "inGame"]
+
+    poll_ms = max(100, BossRaidBridge._to_int(config.get("obsWebSocketPollMs", 250), 250))
+    reconnect_seconds = max(1, BossRaidBridge._to_int(config.get("obsWebSocketReconnectSeconds", 5), 5))
+
+    return {
+        "url": str(config.get("obsWebSocketUrl", "ws://127.0.0.1:4455")).strip() or "ws://127.0.0.1:4455",
+        "password": str(config.get("obsWebSocketPassword", "")),
+        "sceneName": str(config.get("obsSceneName", "")).strip(),
+        "sources": sources,
+        "screenSources": screen_sources,
+        "visibleScreens": visible_screens,
+        "pollSeconds": poll_ms / 1000,
+        "reconnectSeconds": reconnect_seconds,
+    }
+
+
+class TourneyIpcScoreClient:
+    def __init__(self, bridge, config):
+        self.bridge = bridge
+        self.config = config
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.last_status = ""
+        self.last_path = None
+
+    def start(self):
+        if self.thread is not None:
+            return
+        self.thread = threading.Thread(target=self._run, name="TourneyIpcScoreClient", daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        if self.thread is not None:
+            self.thread.join(timeout=2.0)
+
+    def _run(self):
+        poll_seconds = float(self.config.get("pollSeconds", 0.25))
+        while not self.stop_event.is_set():
+            score_path = self._resolve_score_file()
+            if score_path is None:
+                self._set_status("TOURNEY IPC WAITING")
+                self.stop_event.wait(1.0)
+                continue
+
+            if score_path != self.last_path:
+                self.last_path = score_path
+                print(f"[SCORE IPC] Reading osu! tournament scores from {score_path}", flush=True)
+                self._set_status("TOURNEY IPC WATCHING")
+
+            try:
+                scores = self._read_scores(score_path)
+            except Exception as exc:
+                print(f"[SCORE IPC] Failed to read {score_path}: {exc}", flush=True)
+                self._set_status(f"TOURNEY IPC ERROR: {type(exc).__name__}")
+                self.stop_event.wait(1.0)
+                continue
+
+            if scores:
+                self.bridge.apply_external_scores(
+                    scores,
+                    source_label="Tourney IPC",
+                    team_ids=self.config.get("teamIds", []),
+                    allowed_screens=self.config.get("updateScreens", []),
+                )
+            else:
+                self._set_status("TOURNEY IPC EMPTY")
+
+            self.stop_event.wait(poll_seconds)
+
+    def _set_status(self, status):
+        status = str(status or "")[:80]
+        if status == self.last_status:
+            return
+        self.last_status = status
+        print(f"[SCORE IPC] {status}", flush=True)
+        self.bridge.set_score_source_status(status)
+
+    def _resolve_score_file(self):
+        configured = self.config.get("path", "")
+        env_path = os.environ.get("BOSS_RAID_TOURNEY_IPC_PATH", "")
+        score_file = self.config.get("scoreFile", "ipc-scores.txt")
+
+        for raw_path in [env_path, configured]:
+            candidate = self._score_file_from_path(raw_path, score_file)
+            if candidate is not None:
+                return candidate
+
+        for directory in self._default_candidate_directories():
+            candidate = Path(directory) / score_file
+            if candidate.exists():
+                return candidate
+        return None
+
+    @staticmethod
+    def _score_file_from_path(raw_path, score_file):
+        if not raw_path:
+            return None
+
+        path = Path(os.path.expandvars(os.path.expanduser(str(raw_path))))
+        if path.is_file():
+            return path
+        if path.is_dir():
+            candidate = path / score_file
+            return candidate if candidate.exists() else None
+
+        if path.name.lower() == score_file.lower() or path.suffix:
+            return path if path.exists() else None
+
+        candidate = path / score_file
+        return candidate if candidate.exists() else None
+
+    @staticmethod
+    def _default_candidate_directories():
+        candidates = [PROJECT_ROOT, PROJECT_ROOT / "Bridge"]
+        local_app_data = os.environ.get("LOCALAPPDATA", "")
+        app_data = os.environ.get("APPDATA", "")
+        user_profile = os.environ.get("USERPROFILE", "")
+        if local_app_data:
+            candidates.append(Path(local_app_data) / "osu!")
+            candidates.append(Path(local_app_data) / "osulazer")
+        if app_data:
+            candidates.append(Path(app_data) / "osu")
+        if user_profile:
+            candidates.append(Path(user_profile) / ".osu")
+        return candidates
+
+    @staticmethod
+    def _read_scores(score_path):
+        with Path(score_path).open("r", encoding="utf-8-sig", errors="ignore") as score_file:
+            return TourneyIpcScoreClient._parse_score_lines(score_file.read())
+
+    @staticmethod
+    def _parse_score_lines(text):
+        scores = []
+        for line in str(text or "").splitlines():
+            matches = re.findall(r"-?\d[\d,]*", line)
+            if not matches:
+                continue
+            raw_value = matches[-1]
+            cleaned = re.sub(r"[^\d-]", "", raw_value)
+            if not cleaned or cleaned == "-":
+                continue
+            try:
+                scores.append(max(0, int(cleaned)))
+            except ValueError:
+                continue
+        return scores
+
+
+class ObsWebSocketVisibilityClient:
+    def __init__(self, bridge, config):
+        self.bridge = bridge
+        self.config = config
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.sock = None
+        self.request_index = 0
+        self.scene_item_cache = {}
+        self.last_status = ""
+        self.last_screen = None
+        self.screen_event = threading.Event()
+
+    def start(self):
+        if self.thread is not None:
+            return
+        self.bridge.add_screen_listener(self.on_screen_changed)
+        self.thread = threading.Thread(target=self._run, name="ObsWebSocketVisibilityClient", daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        self.screen_event.set()
+        self.bridge.remove_screen_listener(self.on_screen_changed)
+        if self.sock is not None:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
+                self.sock.close()
+            except OSError:
+                pass
+        if self.thread is not None:
+            self.thread.join(timeout=2.0)
+
+    def on_screen_changed(self, screen):
+        self.screen_event.set()
+
+    def _run(self):
+        reconnect_seconds = float(self.config.get("reconnectSeconds", 5))
+        while not self.stop_event.is_set():
+            try:
+                self._connect()
+                self._set_status("OBS CONNECTED")
+                self._sync_loop()
+            except Exception as exc:
+                if self.stop_event.is_set():
+                    break
+                self._close_socket()
+                self.scene_item_cache.clear()
+                self.last_screen = None
+                status = f"OBS RETRYING: {type(exc).__name__}"
+                print(f"[OBS] {status}: {exc}", flush=True)
+                self._set_status(status)
+                self.stop_event.wait(reconnect_seconds)
+
+    def _sync_loop(self):
+        poll_seconds = float(self.config.get("pollSeconds", 0.25))
+        while not self.stop_event.is_set():
+            screen = self.bridge.snapshot().get("screen", "")
+            if screen != self.last_screen:
+                self._apply_screen(screen)
+                self.last_screen = screen
+            self.screen_event.wait(poll_seconds)
+            self.screen_event.clear()
+
+    def _connect(self):
+        self._close_socket()
+        parsed = urlparse(self.config.get("url", "ws://127.0.0.1:4455"))
+        if parsed.scheme not in ("ws", ""):
+            raise ValueError("only ws:// OBS WebSocket URLs are supported")
+
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 4455
+        path = parsed.path or "/"
+        if parsed.query:
+            path += "?" + parsed.query
+
+        print(f"[OBS] Connecting to {host}:{port}", flush=True)
+        sock_obj = socket.create_connection((host, port), timeout=5)
+        sock_obj.settimeout(5)
+        key = base64.b64encode(os.urandom(16)).decode("ascii")
+        request = (
+            f"GET {path} HTTP/1.1\r\n"
+            f"Host: {host}:{port}\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            f"Sec-WebSocket-Key: {key}\r\n"
+            "Sec-WebSocket-Version: 13\r\n"
+            "Sec-WebSocket-Protocol: obswebsocket.json\r\n"
+            "\r\n"
+        )
+        sock_obj.sendall(request.encode("ascii"))
+        response = self._read_http_response(sock_obj)
+        if " 101 " not in response.split("\r\n", 1)[0]:
+            raise ConnectionError(response.split("\r\n", 1)[0])
+
+        self.sock = sock_obj
+        hello = self._recv_obs_message()
+        if hello.get("op") != 0:
+            raise ConnectionError("OBS did not send Hello")
+
+        hello_data = hello.get("d", {})
+        rpc_version = min(1, BossRaidBridge._to_int(hello_data.get("rpcVersion", 1), 1))
+        identify_data = {
+            "rpcVersion": rpc_version,
+            "eventSubscriptions": 0,
+        }
+        authentication = hello_data.get("authentication")
+        if isinstance(authentication, dict):
+            identify_data["authentication"] = self._build_authentication(
+                self.config.get("password", ""),
+                authentication.get("salt", ""),
+                authentication.get("challenge", ""),
+            )
+
+        self._send_obs_message({"op": 1, "d": identify_data})
+        identified = self._recv_obs_message()
+        if identified.get("op") != 2:
+            raise ConnectionError("OBS did not accept Identify")
+
+    def _apply_screen(self, screen):
+        scene_name = self._resolve_scene_name()
+        desired_sources = set(self._sources_for_screen(screen))
+        all_sources = self._all_sources()
+        errors = []
+        for source_name in all_sources:
+            try:
+                self._set_source_enabled(scene_name, source_name, source_name in desired_sources)
+            except Exception as exc:
+                errors.append(f"{source_name}: {exc}")
+
+        action = "ON" if desired_sources else "OFF"
+        if errors:
+            for error in errors:
+                print(f"[OBS] Source toggle failed: {error}", flush=True)
+            self._set_status(f"OBS PARTIAL {screen} {action}")
+            return
+
+        self._set_status(f"OBS {screen} {action}")
+
+    def _sources_for_screen(self, screen):
+        screen_sources = self.config.get("screenSources", {})
+        if isinstance(screen_sources, dict) and screen in screen_sources:
+            return screen_sources.get(screen, [])
+
+        if screen in set(self.config.get("visibleScreens", [])):
+            return self.config.get("sources", [])
+        return []
+
+    def _all_sources(self):
+        ordered_sources = []
+        seen = set()
+
+        def add(source_name):
+            if not source_name or source_name in seen:
+                return
+            seen.add(source_name)
+            ordered_sources.append(source_name)
+
+        for source_name in self.config.get("sources", []):
+            add(source_name)
+        screen_sources = self.config.get("screenSources", {})
+        if isinstance(screen_sources, dict):
+            for source_list in screen_sources.values():
+                for source_name in source_list:
+                    add(source_name)
+        return ordered_sources
+
+    def _set_source_enabled(self, scene_name, source_name, enabled):
+        scene_item_id = self._get_scene_item_id(scene_name, source_name)
+        self._request(
+            "SetSceneItemEnabled",
+            {
+                "sceneName": scene_name,
+                "sceneItemId": scene_item_id,
+                "sceneItemEnabled": bool(enabled),
+            },
+        )
+
+    def _resolve_scene_name(self):
+        configured = self.config.get("sceneName", "")
+        if configured:
+            return configured
+
+        response = self._request("GetCurrentProgramScene")
+        scene_name = response.get("sceneName") or response.get("currentProgramSceneName")
+        if not scene_name:
+            raise ValueError("OBS current scene is unavailable")
+        return scene_name
+
+    def _get_scene_item_id(self, scene_name, source_name):
+        cache_key = (scene_name, source_name)
+        if cache_key in self.scene_item_cache:
+            return self.scene_item_cache[cache_key]
+
+        response = self._request(
+            "GetSceneItemId",
+            {
+                "sceneName": scene_name,
+                "sourceName": source_name,
+                "searchOffset": -1,
+            },
+        )
+        scene_item_id = response.get("sceneItemId")
+        if scene_item_id is None:
+            raise ValueError("sceneItemId missing")
+        self.scene_item_cache[cache_key] = scene_item_id
+        return scene_item_id
+
+    def _request(self, request_type, request_data=None):
+        if self.sock is None:
+            raise ConnectionError("OBS socket is not connected")
+
+        self.request_index += 1
+        request_id = f"bossraid-{int(time.time() * 1000)}-{self.request_index}"
+        payload = {
+            "op": 6,
+            "d": {
+                "requestType": request_type,
+                "requestId": request_id,
+            },
+        }
+        if request_data is not None:
+            payload["d"]["requestData"] = request_data
+
+        self._send_obs_message(payload)
+        while not self.stop_event.is_set():
+            message = self._recv_obs_message()
+            if message.get("op") != 7:
+                continue
+            data = message.get("d", {})
+            if data.get("requestId") != request_id:
+                continue
+            status = data.get("requestStatus", {})
+            if not status.get("result"):
+                comment = status.get("comment") or status.get("code") or "request failed"
+                raise RuntimeError(f"{request_type}: {comment}")
+            return data.get("responseData", {}) or {}
+
+        raise ConnectionError("OBS client stopped")
+
+    def _send_obs_message(self, message):
+        if self.sock is None:
+            raise ConnectionError("OBS socket is not connected")
+        send_ws_client_text(self.sock, json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+    def _recv_obs_message(self):
+        if self.sock is None:
+            raise ConnectionError("OBS socket is not connected")
+        while not self.stop_event.is_set():
+            opcode, payload = read_ws_frame(self.sock)
+            if opcode is None:
+                raise ConnectionError("OBS socket closed")
+            if opcode == 8:
+                raise ConnectionError("OBS closed websocket")
+            if opcode == 9:
+                send_ws_client_frame(self.sock, 10, payload)
+                continue
+            if opcode == 1 and payload:
+                return json.loads(payload.decode("utf-8"))
+        raise ConnectionError("OBS client stopped")
+
+    def _close_socket(self):
+        if self.sock is None:
+            return
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+        self.sock = None
+
+    def _set_status(self, status):
+        status = str(status or "")[:80]
+        if status == self.last_status:
+            return
+        self.last_status = status
+        print(f"[OBS] {status}", flush=True)
+        self.bridge.set_obs_status(status)
+
+    @staticmethod
+    def _read_http_response(sock_obj):
+        chunks = []
+        data = b""
+        while b"\r\n\r\n" not in data:
+            chunk = sock_obj.recv(4096)
+            if not chunk:
+                raise ConnectionError("OBS HTTP handshake closed")
+            chunks.append(chunk)
+            data = b"".join(chunks)
+            if len(data) > 16384:
+                raise ConnectionError("OBS HTTP handshake response too large")
+        return data.decode("iso-8859-1", errors="replace")
+
+    @staticmethod
+    def _build_authentication(password, salt, challenge):
+        secret = base64.b64encode(hashlib.sha256((str(password) + str(salt)).encode("utf-8")).digest()).decode("ascii")
+        return base64.b64encode(hashlib.sha256((secret + str(challenge)).encode("utf-8")).digest()).decode("ascii")
 
 
 class BanchoIrcChatClient:
@@ -988,6 +1636,32 @@ class BanchoIrcChatClient:
         start_delay = int(self.config.get("mpStartDelaySeconds", 5))
         if self.send_channel_message(f"!mp start {start_delay}"):
             self.bridge.add_chat_message("Bridge", f"All players ready. Sent !mp start {start_delay}.", "system")
+            self._schedule_auto_in_game(generation, start_delay)
+
+    def _schedule_auto_in_game(self, generation, start_delay):
+        if not self.config.get("mpAutoInGameAfterStart", True):
+            return
+
+        extra_delay = max(0.0, BossRaidBridge._to_float(self.config.get("mpAutoInGameExtraDelaySeconds", 0.5), 0.5))
+        delay = max(0.0, float(start_delay)) + extra_delay
+        print(f"[MP BOT] Auto in-game transition scheduled in {delay:.1f}s.", flush=True)
+        threading.Thread(
+            target=self._auto_in_game_after_start,
+            args=(generation, delay),
+            name="MpAutoInGame",
+            daemon=True,
+        ).start()
+
+    def _auto_in_game_after_start(self, generation, delay):
+        if not self._sleep_bot(generation, delay):
+            return
+
+        if self.bridge.auto_start_map_if_ready():
+            print("[MP BOT] Auto switched overlay to inGame.", flush=True)
+            self.bridge.add_chat_message("Bridge", "Auto switched to In Game after !mp start.", "system")
+        else:
+            screen = self.bridge.snapshot().get("screen", "")
+            print(f"[MP BOT] Auto in-game skipped because screen is {screen}.", flush=True)
 
     def send_channel_message(self, message):
         if not self.connected:
@@ -1280,6 +1954,28 @@ def send_ws_frame(sock_obj, opcode, payload):
     sock_obj.sendall(bytes(header) + payload)
 
 
+def send_ws_client_text(sock_obj, payload):
+    send_ws_client_frame(sock_obj, 1, payload)
+
+
+def send_ws_client_frame(sock_obj, opcode, payload):
+    if isinstance(payload, str):
+        payload = payload.encode("utf-8")
+    length = len(payload)
+    mask = os.urandom(4)
+    header = bytearray([0x80 | opcode])
+    if length < 126:
+        header.append(0x80 | length)
+    elif length < (1 << 16):
+        header.append(0x80 | 126)
+        header.extend(struct.pack("!H", length))
+    else:
+        header.append(0x80 | 127)
+        header.extend(struct.pack("!Q", length))
+    masked_payload = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
+    sock_obj.sendall(bytes(header) + mask + masked_payload)
+
+
 INDEX_HTML = r"""<!doctype html>
 <html lang="en">
 <head>
@@ -1533,6 +2229,8 @@ INDEX_HTML = r"""<!doctype html>
         ['Difficulty', state.difficulty],
         ['Boss HP', num(state.bossHp)],
         ['Total Score', num(state.totalScore)],
+        ['Score Source', state.scoreSourceStatus || '-'],
+        ['OBS', state.obsStatus || '-'],
         ['Chat', state.chatStatus || '-'],
         ['Selected Map', selected ? selected.title : '-'],
         ['Beatmap ID', selected && selected.beatmapId ? selected.beatmapId : '-']
@@ -1590,11 +2288,24 @@ INDEX_HTML = r"""<!doctype html>
 def run_server(host=HOST, port=PORT):
     server = ThreadingHTTPServer((host, port), BridgeRequestHandler)
     irc_client = None
-    api_config = load_api_config()
+    score_client = None
+    obs_client = None
+    bridge_config = load_bridge_config()
+    api_config = load_api_config(bridge_config)
     if api_config is not None:
         irc_client = BanchoIrcChatClient(BRIDGE, api_config)
         BRIDGE.set_irc_client(irc_client)
         irc_client.start()
+
+    score_config = load_tourney_ipc_config(bridge_config)
+    if score_config is not None:
+        score_client = TourneyIpcScoreClient(BRIDGE, score_config)
+        score_client.start()
+
+    obs_config = load_obs_websocket_config(bridge_config)
+    if obs_config is not None:
+        obs_client = ObsWebSocketVisibilityClient(BRIDGE, obs_config)
+        obs_client.start()
 
     print("========================================", flush=True)
     print(" Boss Raid Bridge", flush=True)
@@ -1612,6 +2323,10 @@ def run_server(host=HOST, port=PORT):
     finally:
         if irc_client is not None:
             irc_client.stop()
+        if score_client is not None:
+            score_client.stop()
+        if obs_client is not None:
+            obs_client.stop()
         BRIDGE.set_irc_client(None)
         server.server_close()
 
@@ -1637,6 +2352,22 @@ def self_test():
     bridge.apply_command({"type": "set_difficulty", "difficulty": "easy"})
     bridge.apply_command({"type": "finish_map"})
     assert bridge.snapshot()["lastResult"] == "clear"
+    bridge.apply_command({"type": "set_screen", "screen": "inGame"})
+    assert bridge.apply_external_scores([123456, 234567, 0, 0], team_ids=["team-1", "team-2", "team-3", "team-4"], allowed_screens=["inGame"])
+    assert bridge.snapshot()["teams"][0]["score"] == 123456
+    assert bridge.snapshot()["teams"][1]["score"] == 234567
+    assert bridge.snapshot()["totalScore"] == 358023
+    bridge.apply_command({"type": "ready_map"})
+    assert bridge.auto_start_map_if_ready()
+    assert bridge.snapshot()["screen"] == "inGame"
+    assert not bridge.auto_start_map_if_ready()
+    bridge.apply_command({"type": "set_screen", "screen": "standby"})
+    assert not bridge.apply_external_scores([1, 2], team_ids=["team-1", "team-2"], allowed_screens=["inGame"])
+    assert bridge.snapshot()["teams"][0]["score"] == 123456
+    bridge.apply_command({"type": "next_round"})
+    assert bridge.snapshot()["screen"] == "difficultySelect"
+    assert bridge.snapshot()["selectedMode"] == ""
+    assert bridge.snapshot()["selectedMapId"] == ""
     played_id = bridge.snapshot()["selectedMapId"]
     played_mode = bridge.snapshot()["selectedMode"]
     with bridge.lock:
@@ -1656,6 +2387,12 @@ def self_test():
     assert bridge._extract_beatmap_id({"beatmapId": "123456"}) == 123456
     assert bridge._extract_beatmap_id({"link": "https://osu.ppy.sh/beatmapsets/1576254#osu/3427307"}) == 3427307
     assert bridge._extract_beatmap_id({"link": "https://osu.ppy.sh/b/7654321"}) == 7654321
+    assert TourneyIpcScoreClient._parse_score_lines("0\n1,234,567\nP2: 765432\n") == [0, 1234567, 765432]
+    assert ObsWebSocketVisibilityClient._build_authentication(
+        "supersecretpassword",
+        "lM1GncleQOaCu9lT1yeUZhFYnqhsLLP1G5lAGo3ixaI=",
+        "+IxH4CnCiqpX1rM9scsNynZzbOe4KhDeYcTNS3PDaeY=",
+    ) == "1Ct943GAT+6YQUUX47Ia/ncufilbe6+oD6lY+5kaCu4="
     assert BanchoIrcChatClient._build_mp_mods("NM") == "NF"
     assert BanchoIrcChatClient._build_mp_mods("HD") == "NF HD"
     assert BanchoIrcChatClient._build_mp_mods("HR") == "NF HR"

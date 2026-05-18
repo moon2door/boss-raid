@@ -24,6 +24,8 @@ Unity receives one complete JSON state object per WebSocket message.
   "resultMessage": "",
   "connectionLabel": "BRIDGE ONLINE",
   "chatStatus": "IRC DISABLED",
+  "scoreSourceStatus": "TOURNEY IPC DISABLED",
+  "obsStatus": "OBS DISABLED",
   "chatMessages": [
     {
       "time": "15:00:00",
@@ -120,6 +122,9 @@ On `finish_map`:
 ## Operator Data Entry
 
 - Team names and scores are edited from the bridge page under `Scores`.
+- If `API.Json` has `tourneyIpcEnabled=true`, Bridge reads osu! tournament IPC scores from `ipc-scores.txt` and updates team scores automatically.
+- If `API.Json` has `obsWebSocketEnabled=true`, Bridge toggles configured OBS spectator sources or per-screen source groups on for `mapReady` and `inGame` screens and off on other screens.
+- If `API.Json` has `mpAutoInGameAfterStart=true`, Bridge switches from `mapReady` to `inGame` after it sends `!mp start`, using `mpStartDelaySeconds + mpAutoInGameExtraDelaySeconds`.
 - Map data is edited from the bridge page under `Map Pool JSON`.
 - Persistent team/map setup is edited in `Setting.Json`.
 - `Bridge/map_pool.example.json` shows the expected map object fields.

@@ -8,6 +8,26 @@
   "commandBotEnabled": true,
   "mpTimerSeconds": 90,
   "mpStartDelaySeconds": 5,
+  "mpAutoInGameAfterStart": true,
+  "mpAutoInGameExtraDelaySeconds": 0.5,
   "readyReminderMessage": "모두 준비를 눌러주세요.",
+  "tourneyIpcEnabled": false,
+  "tourneyIpcPath": "",
+  "tourneyIpcScoreFile": "ipc-scores.txt",
+  "tourneyIpcPollMs": 250,
+  "tourneyIpcTeamIds": [],
+  "tourneyIpcUpdateScreens": ["inGame"],
+  "obsWebSocketEnabled": false,
+  "obsWebSocketUrl": "ws://127.0.0.1:4455",
+  "obsWebSocketPassword": "",
+  "obsSceneName": "",
+  "obsSpectatorSources": [],
+  "obsSpectatorScreenSources": {
+    "mapReady": [],
+    "inGame": []
+  },
+  "obsSpectatorVisibleScreens": ["mapReady", "inGame"],
+  "obsWebSocketPollMs": 250,
+  "obsWebSocketReconnectSeconds": 5,
   "debugRawIrc": false
 }
