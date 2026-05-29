@@ -113,6 +113,7 @@ Supported command types:
 On `finish_map`:
 
 - Clear when `totalScore >= bossHp`.
+- When live player scores are available, `team.score` and `totalScore` are damage values: P1 + P2 + P3 * 1.2. Player rows still keep raw player scores.
 - Clear adds the difficulty prize to `prizePool`.
 - Clear on a burger map at `hard` difficulty adds 1 to `burgerCount`.
 - Clear on a burger map below `hard` adds 1 to `burgerMissCount`.

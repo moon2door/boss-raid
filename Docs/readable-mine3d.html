@@ -1,0 +1,1813 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readable Mine3D</title>
+<style>
+:root {
+  --bg: #071014;
+  --panel: #10181d;
+  --panel-2: #172229;
+  --line: #2c3b43;
+  --line-strong: #55707c;
+  --text: #f4f7f4;
+  --muted: #9fb0af;
+  --faint: #697c7c;
+  --cyan: #20c7d8;
+  --amber: #f5b849;
+  --green: #75d17f;
+  --red: #ff5b6b;
+  --blue: #5da8ff;
+  --violet: #b18aff;
+  --black: #04090b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button {
+  min-height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #132128;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--cyan);
+  color: #ffffff;
+}
+
+button[aria-pressed="true"],
+.axis button.active {
+  border-color: var(--amber);
+  background: #2d2718;
+  color: #fff6d7;
+}
+
+button svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.1;
+}
+
+select {
+  min-height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #0e171c;
+  color: var(--text);
+  padding: 0 34px 0 11px;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--amber);
+}
+
+input[type="number"] {
+  width: 58px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: rgba(5, 12, 15, 0.62);
+  color: var(--text);
+  text-align: center;
+  outline: none;
+}
+
+input[type="number"]:focus {
+  box-shadow: 0 0 0 1px var(--cyan);
+}
+
+label {
+  color: var(--muted);
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+
+.screen {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.topbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  min-height: 58px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(110, 139, 148, 0.55);
+  border-radius: 8px;
+  background: rgba(10, 17, 20, 0.88);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+.brand {
+  min-width: 156px;
+  display: grid;
+  gap: 1px;
+}
+
+.brand strong {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.brand span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-row {
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+}
+
+.metric {
+  min-width: 76px;
+  padding: 6px 10px;
+  border: 1px solid rgba(77, 97, 105, 0.85);
+  border-radius: 7px;
+  background: rgba(17, 30, 36, 0.86);
+}
+
+.metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.metric strong {
+  display: block;
+  margin-top: 1px;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.custom-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-controls[hidden] {
+  display: none;
+}
+
+.custom-controls label {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #0e171c;
+  white-space: nowrap;
+}
+
+.custom-controls span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.side {
+  position: absolute;
+  top: 84px;
+  right: 12px;
+  width: 318px;
+  max-height: calc(100vh - 104px);
+  overflow: auto;
+  pointer-events: auto;
+  border: 1px solid rgba(110, 139, 148, 0.55);
+  border-radius: 8px;
+  background: rgba(12, 20, 24, 0.9);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+.section {
+  padding: 14px;
+  border-bottom: 1px solid rgba(74, 96, 104, 0.6);
+}
+
+.section:last-child {
+  border-bottom: 0;
+}
+
+.section h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #dce8e7;
+}
+
+.readout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.readout .wide {
+  grid-column: 1 / -1;
+}
+
+.stat {
+  min-height: 58px;
+  padding: 8px 9px;
+  border: 1px solid rgba(74, 96, 104, 0.72);
+  border-radius: 7px;
+  background: rgba(20, 32, 38, 0.76);
+}
+
+.stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.stat strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.stat strong.blue {
+  color: var(--cyan);
+}
+
+.stat strong.amber {
+  color: var(--amber);
+}
+
+.stat strong.red {
+  color: var(--red);
+}
+
+.axis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.axis button {
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.slider-line {
+  display: grid;
+  grid-template-columns: 54px 1fr 32px;
+  gap: 9px;
+  align-items: center;
+  margin-top: 11px;
+}
+
+.switches {
+  display: grid;
+  gap: 9px;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cyan);
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.legend-item {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+}
+
+.swatch.cyan {
+  background: var(--cyan);
+}
+
+.swatch.amber {
+  background: var(--amber);
+}
+
+.swatch.red {
+  background: var(--red);
+}
+
+.swatch.gray {
+  background: #7b8a8d;
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  max-width: min(620px, calc(100vw - 28px));
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border: 1px solid rgba(110, 139, 148, 0.6);
+  border-radius: 8px;
+  background: rgba(10, 17, 20, 0.9);
+  color: #dce8e7;
+  pointer-events: none;
+  text-align: center;
+}
+
+.toast.win {
+  border-color: rgba(117, 209, 127, 0.85);
+  color: #ddffe0;
+}
+
+.toast.lose {
+  border-color: rgba(255, 91, 107, 0.85);
+  color: #ffe0e4;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 8, 10, 0.62);
+  pointer-events: auto;
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.help-modal {
+  width: min(720px, 100%);
+  max-height: min(720px, calc(100vh - 36px));
+  overflow: auto;
+  border: 1px solid rgba(110, 139, 148, 0.72);
+  border-radius: 8px;
+  background: rgba(12, 20, 24, 0.96);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+}
+
+.modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(74, 96, 104, 0.72);
+  background: rgba(12, 20, 24, 0.98);
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.help-content {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.help-content section {
+  display: grid;
+  gap: 8px;
+}
+
+.help-content h3 {
+  margin: 0;
+  color: #e6f0ef;
+  font-size: 13px;
+}
+
+.help-content p,
+.help-content li {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.help-content ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.key-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.key-item {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(74, 96, 104, 0.72);
+  border-radius: 7px;
+  background: rgba(20, 32, 38, 0.76);
+}
+
+.key-item kbd {
+  min-width: 42px;
+  padding: 3px 7px;
+  border: 1px solid rgba(110, 139, 148, 0.65);
+  border-radius: 5px;
+  background: #081116;
+  color: var(--text);
+  text-align: center;
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--muted);
+  z-index: 10;
+}
+
+@media (max-width: 980px) {
+  .topbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    min-width: 100%;
+  }
+
+  .toolbar {
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .side {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 12px;
+    width: auto;
+    max-height: 44vh;
+  }
+
+  .toast {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    min-height: 0;
+  }
+
+  .metric-row {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .metric {
+    min-width: 70px;
+  }
+
+  .toolbar button span {
+    display: none;
+  }
+
+  .side {
+    max-height: 48vh;
+  }
+
+  .key-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+<canvas id="stage" tabindex="0"></canvas>
+<div class="loading" id="loading">3D 보드 준비 중</div>
+
+<div class="screen">
+  <header class="topbar">
+    <div class="brand">
+      <strong>Readable Mine3D</strong>
+      <span id="statusText">새 게임</span>
+    </div>
+
+    <div class="metric-row" aria-label="game stats">
+      <div class="metric"><span>지뢰</span><strong id="mineCounter">0</strong></div>
+      <div class="metric"><span>열림</span><strong id="openCounter">0</strong></div>
+      <div class="metric"><span>시간</span><strong id="timer">0:00</strong></div>
+    </div>
+
+    <div class="toolbar">
+      <select id="preset" aria-label="difficulty">
+        <option value="easy">Easy 4x4x4</option>
+        <option value="normal" selected>Normal 5x5x5</option>
+        <option value="hard">Hard 6x6x6</option>
+        <option value="custom">Custom</option>
+      </select>
+      <div class="custom-controls" id="customControls" hidden>
+        <label><span>N</span><input id="customSize" type="number" min="3" max="9" value="7" inputmode="numeric"></label>
+        <label><span>Bomb</span><input id="customMines" type="number" min="1" max="342" value="55" inputmode="numeric"></label>
+      </div>
+      <button id="newGame" title="새 게임"><i data-lucide="rotate-cw"></i><span>새 게임</span></button>
+      <button id="flagMode" aria-pressed="false" title="깃발 모드"><i data-lucide="flag"></i><span>깃발</span></button>
+      <button id="resetCamera" title="카메라 리셋"><i data-lucide="scan"></i><span>시점</span></button>
+      <button id="helpButton" title="도움말"><i data-lucide="circle-help"></i><span>도움말</span></button>
+    </div>
+  </header>
+
+  <aside class="side">
+    <section class="section">
+      <h2>영향 범위</h2>
+      <div class="readout">
+        <div class="stat wide"><span>선택 숫자</span><strong id="clueValue">-</strong></div>
+        <div class="stat"><span>숨은 칸</span><strong class="blue" id="hiddenAround">-</strong></div>
+        <div class="stat"><span>깃발</span><strong class="red" id="flagsAround">-</strong></div>
+        <div class="stat"><span>필요 지뢰</span><strong class="amber" id="neededAround">-</strong></div>
+        <div class="stat"><span>영향 칸</span><strong id="totalAround">-</strong></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>레이어</h2>
+      <div class="axis" id="axisButtons">
+        <button class="active" data-axis="all">전체</button>
+        <button data-axis="x">X</button>
+        <button data-axis="y">Y</button>
+        <button data-axis="z">Z</button>
+      </div>
+      <div class="slider-line">
+        <label for="layerSlider">좌표</label>
+        <input id="layerSlider" type="range" min="0" max="4" value="2">
+        <strong id="layerValue">-</strong>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>표시</h2>
+      <div class="switches">
+        <label class="switch"><span>영향권</span><input id="influenceToggle" type="checkbox" checked></label>
+        <label class="switch"><span>바깥 희미하게</span><input id="fadeToggle" type="checkbox" checked></label>
+        <label class="switch"><span>숫자 항상 위</span><input id="labelToggle" type="checkbox" checked></label>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>범례</h2>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch cyan"></span><span>숨은 영향칸</span></div>
+        <div class="legend-item"><span class="swatch red"></span><span>깃발</span></div>
+      </div>
+    </section>
+  </aside>
+
+  <div class="toast" id="toast">첫 칸은 안전하게 시작됩니다.</div>
+
+  <div class="modal-backdrop" id="helpModal" hidden>
+    <div class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="modal-head">
+        <h2 id="helpTitle">도움말</h2>
+        <button id="helpClose" title="닫기"><i data-lucide="x"></i><span>닫기</span></button>
+      </div>
+      <div class="help-content">
+        <section>
+          <h3>기본 조작</h3>
+          <div class="key-grid">
+            <div class="key-item"><kbd>Click</kbd><span>숨은 칸 열기</span></div>
+            <div class="key-item"><kbd>Right</kbd><span>깃발 꽂기/해제</span></div>
+            <div class="key-item"><kbd>Drag</kbd><span>카메라 회전</span></div>
+            <div class="key-item"><kbd>Wheel</kbd><span>확대/축소</span></div>
+            <div class="key-item"><kbd>F</kbd><span>깃발 모드 토글</span></div>
+            <div class="key-item"><kbd>R</kbd><span>시점 리셋</span></div>
+          </div>
+        </section>
+        <section>
+          <h3>숫자 읽기</h3>
+          <ul>
+            <li>숫자는 주변 26칸 안에 있는 지뢰 수입니다.</li>
+            <li>깃발을 꽂으면 영향을 받는 숫자는 남은 필요 지뢰 수로 줄어듭니다.</li>
+            <li>숫자가 0이 되면 그 숫자칸은 빈 칸처럼 숨겨집니다.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>영향권 보기</h3>
+          <ul>
+            <li><kbd>Alt</kbd>를 누른 채 숫자에 마우스를 올리면 그 숫자가 보는 숨은 칸만 표시됩니다.</li>
+            <li>일반 클릭은 열린 숫자칸을 통과해서 뒤쪽 숨은 칸을 우선 선택합니다.</li>
+            <li><kbd>Alt</kbd> + 클릭은 숫자 단서를 고정해서 오른쪽 패널에서 계속 볼 수 있습니다.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>레이어</h3>
+          <ul>
+            <li>X/Y/Z 버튼으로 한 축의 단면만 볼 수 있습니다.</li>
+            <li>좌표 슬라이더로 안쪽 층을 옮겨가며 확인합니다.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const PRESETS = {
+  easy: { size: 4, mines: 8 },
+  normal: { size: 5, mines: 18 },
+  hard: { size: 6, mines: 38 }
+};
+
+const CUSTOM_LIMITS = {
+  minSize: 3,
+  maxSize: 9,
+  defaultSize: 7,
+  defaultMines: 55
+};
+
+const CUBE = 0.82;
+const SPACING = 1.08;
+const DIRS = [];
+for (let dx = -1; dx <= 1; dx += 1) {
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dz = -1; dz <= 1; dz += 1) {
+      if (dx !== 0 || dy !== 0 || dz !== 0) DIRS.push([dx, dy, dz]);
+    }
+  }
+}
+
+const COLORS = {
+  hidden: 0x273641,
+  hiddenFocus: 0x315261,
+  revealed: 0xb9c6c2,
+  empty: 0x7f9293,
+  edge: 0x58727a,
+  flag: 0xff5366,
+  mine: 0x11171b,
+  exploded: 0xff405a,
+  hover: 0x20c7d8,
+  selected: 0xf5b849,
+  ghost: 0x91a2a5
+};
+
+const NUMBER_COLORS = [
+  "#d9e4e2",
+  "#5da8ff",
+  "#75d17f",
+  "#f5b849",
+  "#ff7b58",
+  "#ff5b6b",
+  "#20c7d8",
+  "#b18aff",
+  "#f4f7f4"
+];
+
+const RESULT_STYLES = {
+  correct: { text: "OK", color: "#75d17f", mesh: 0x16372d, edge: 0x75d17f, opacity: 0.16, scale: 0.76, style: "result" },
+  mine: { text: "M", color: "#ff6475", mesh: 0x11171b, edge: 0xff5b6b, opacity: 0.58, scale: 0.82, style: "result" },
+  exploded: { text: "!", color: "#ff6475", mesh: 0xff405a, edge: 0xff5b6b, opacity: 0.88, scale: 0.86, style: "result" },
+  wrong: { text: "X", color: "#f5b849", mesh: 0x2c2111, edge: 0xf5b849, opacity: 0.45, scale: 0.82, style: "result" }
+};
+
+const els = {
+  canvas: document.querySelector("#stage"),
+  loading: document.querySelector("#loading"),
+  statusText: document.querySelector("#statusText"),
+  mineCounter: document.querySelector("#mineCounter"),
+  openCounter: document.querySelector("#openCounter"),
+  timer: document.querySelector("#timer"),
+  preset: document.querySelector("#preset"),
+  customControls: document.querySelector("#customControls"),
+  customSize: document.querySelector("#customSize"),
+  customMines: document.querySelector("#customMines"),
+  newGame: document.querySelector("#newGame"),
+  flagMode: document.querySelector("#flagMode"),
+  resetCamera: document.querySelector("#resetCamera"),
+  helpButton: document.querySelector("#helpButton"),
+  helpModal: document.querySelector("#helpModal"),
+  helpClose: document.querySelector("#helpClose"),
+  clueValue: document.querySelector("#clueValue"),
+  hiddenAround: document.querySelector("#hiddenAround"),
+  flagsAround: document.querySelector("#flagsAround"),
+  neededAround: document.querySelector("#neededAround"),
+  totalAround: document.querySelector("#totalAround"),
+  axisButtons: document.querySelector("#axisButtons"),
+  layerSlider: document.querySelector("#layerSlider"),
+  layerValue: document.querySelector("#layerValue"),
+  influenceToggle: document.querySelector("#influenceToggle"),
+  fadeToggle: document.querySelector("#fadeToggle"),
+  labelToggle: document.querySelector("#labelToggle"),
+  toast: document.querySelector("#toast")
+};
+
+const state = {
+  preset: "normal",
+  size: PRESETS.normal.size,
+  mineTotal: PRESETS.normal.mines,
+  customSize: CUSTOM_LIMITS.defaultSize,
+  customMines: CUSTOM_LIMITS.defaultMines,
+  cells: new Map(),
+  firstMove: true,
+  gameOver: false,
+  won: false,
+  opened: 0,
+  flags: 0,
+  startTime: 0,
+  elapsed: 0,
+  selectedKey: null,
+  hoverKey: null,
+  flagMode: false,
+  sliceAxis: "all",
+  sliceIndex: 2,
+  showInfluence: true,
+  fadeOutside: true,
+  labelsOnTop: true
+};
+
+let scene;
+let camera;
+let renderer;
+let controls;
+let raycaster;
+let mouse;
+let gridGroup;
+let influenceGroup;
+let hoverBox;
+let cubeGeometry;
+let edgeGeometry;
+let ghostGeometry;
+let clockId;
+let downPointer = null;
+let wheelDelta = 0;
+let wheelFrame = 0;
+
+init();
+
+function init() {
+  setupThree();
+  wireUi();
+  newGame("normal");
+  animate();
+  els.loading.remove();
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function setupThree() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x071014);
+  scene.fog = new THREE.Fog(0x071014, 12, 30);
+
+  camera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(7.4, 6.2, 8.5);
+
+  renderer = new THREE.WebGLRenderer({
+    canvas: els.canvas,
+    antialias: true,
+    alpha: false,
+    preserveDrawingBuffer: true
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enableZoom = false;
+  controls.minDistance = 4;
+  controls.maxDistance = 22;
+  controls.target.set(0, 0, 0);
+  controls.update();
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  const ambient = new THREE.HemisphereLight(0xe7fbff, 0x111719, 2.5);
+  scene.add(ambient);
+
+  const key = new THREE.DirectionalLight(0xffffff, 2.0);
+  key.position.set(7, 9, 5);
+  scene.add(key);
+
+  const rim = new THREE.DirectionalLight(0x72e3ff, 0.8);
+  rim.position.set(-6, 3, -8);
+  scene.add(rim);
+
+  const floor = new THREE.GridHelper(10, 10, 0x29414a, 0x1a2a31);
+  floor.position.y = -3.8;
+  floor.material.transparent = true;
+  floor.material.opacity = 0.42;
+  scene.add(floor);
+
+  gridGroup = new THREE.Group();
+  influenceGroup = new THREE.Group();
+  scene.add(gridGroup);
+  scene.add(influenceGroup);
+
+  cubeGeometry = new THREE.BoxGeometry(CUBE, CUBE, CUBE);
+  edgeGeometry = new THREE.EdgesGeometry(cubeGeometry);
+  ghostGeometry = new THREE.BoxGeometry(CUBE * 0.94, CUBE * 0.94, CUBE * 0.94);
+
+  hoverBox = createOutlineBox(COLORS.hover, 1, CUBE + 0.14);
+  hoverBox.visible = false;
+  scene.add(hoverBox);
+
+  window.addEventListener("resize", resize);
+  renderer.domElement.addEventListener("contextmenu", event => event.preventDefault());
+  renderer.domElement.addEventListener("wheel", onWheelZoom, { passive: false });
+  renderer.domElement.addEventListener("pointerdown", onPointerDown);
+  renderer.domElement.addEventListener("pointermove", onPointerMove);
+  renderer.domElement.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("keydown", onKeyDown);
+}
+
+function wireUi() {
+  els.preset.addEventListener("change", () => {
+    updateCustomControls();
+    newGame(els.preset.value);
+  });
+  els.newGame.addEventListener("click", () => newGame(state.preset));
+  els.flagMode.addEventListener("click", () => setFlagMode(!state.flagMode));
+  els.resetCamera.addEventListener("click", resetCamera);
+  els.helpButton.addEventListener("click", openHelp);
+  els.helpClose.addEventListener("click", closeHelp);
+  els.helpModal.addEventListener("click", event => {
+    if (event.target === els.helpModal) closeHelp();
+  });
+  els.customSize.addEventListener("change", () => {
+    syncCustomValues();
+    updateCustomControls();
+  });
+  els.customMines.addEventListener("change", syncCustomValues);
+  [els.customSize, els.customMines].forEach(input => {
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        newGame("custom");
+      }
+    });
+  });
+
+  els.axisButtons.addEventListener("click", event => {
+    const button = event.target.closest("button[data-axis]");
+    if (!button) return;
+    state.sliceAxis = button.dataset.axis;
+    document.querySelectorAll("#axisButtons button").forEach(item => item.classList.toggle("active", item === button));
+    updateLayerUi();
+    refreshAllVisuals();
+    updateInfluence();
+  });
+
+  els.layerSlider.addEventListener("input", () => {
+    state.sliceIndex = Number(els.layerSlider.value);
+    updateLayerUi();
+    refreshAllVisuals();
+    updateInfluence();
+  });
+
+  els.influenceToggle.addEventListener("change", () => {
+    state.showInfluence = els.influenceToggle.checked;
+    updateInfluence();
+  });
+
+  els.fadeToggle.addEventListener("change", () => {
+    state.fadeOutside = els.fadeToggle.checked;
+    refreshAllVisuals();
+  });
+
+  els.labelToggle.addEventListener("change", () => {
+    state.labelsOnTop = els.labelToggle.checked;
+    state.cells.forEach(cell => {
+      if (cell.label) cell.label.material.depthTest = !state.labelsOnTop;
+    });
+  });
+}
+
+function resolveGameConfig(presetName) {
+  if (presetName === "custom") {
+    syncCustomValues();
+    return {
+      size: state.customSize,
+      mines: state.customMines
+    };
+  }
+
+  return PRESETS[presetName] || PRESETS.normal;
+}
+
+function updateCustomControls() {
+  const customActive = els.preset.value === "custom";
+  els.customControls.hidden = !customActive;
+  syncCustomValues();
+}
+
+function syncCustomValues() {
+  const size = clampInt(els.customSize.value, CUSTOM_LIMITS.minSize, CUSTOM_LIMITS.maxSize, CUSTOM_LIMITS.defaultSize);
+  const maxMines = Math.max(1, size ** 3 - 1);
+  const mines = clampInt(els.customMines.value, 1, maxMines, Math.min(CUSTOM_LIMITS.defaultMines, maxMines));
+
+  state.customSize = size;
+  state.customMines = mines;
+  els.customSize.value = String(size);
+  els.customMines.max = String(maxMines);
+  els.customMines.value = String(mines);
+}
+
+function newGame(presetName) {
+  const preset = resolveGameConfig(presetName);
+  state.preset = presetName;
+  state.size = preset.size;
+  state.mineTotal = preset.mines;
+  state.cells.clear();
+  state.firstMove = true;
+  state.gameOver = false;
+  state.won = false;
+  state.opened = 0;
+  state.flags = 0;
+  state.startTime = 0;
+  state.elapsed = 0;
+  state.selectedKey = null;
+  state.hoverKey = null;
+  state.sliceAxis = "all";
+  state.sliceIndex = Math.floor(state.size / 2);
+
+  document.querySelectorAll("#axisButtons button").forEach(item => {
+    item.classList.toggle("active", item.dataset.axis === "all");
+  });
+
+  clearGroup(gridGroup, true);
+  clearGroup(influenceGroup, true);
+  hoverBox.visible = false;
+
+  for (let x = 0; x < state.size; x += 1) {
+    for (let y = 0; y < state.size; y += 1) {
+      for (let z = 0; z < state.size; z += 1) {
+        const key = cellKey(x, y, z);
+        state.cells.set(key, {
+          key,
+          x,
+          y,
+          z,
+          mine: false,
+          count: 0,
+          revealed: false,
+          flagged: false,
+          exploded: false,
+          result: null,
+          mesh: null,
+          material: null,
+          edges: null,
+          edgeMaterial: null,
+          flag: null,
+          label: null
+        });
+      }
+    }
+  }
+
+  state.cells.forEach(cell => createCellObject(cell));
+  updateLayerUi();
+  updateHud();
+  updateInspector(null);
+  setToast("첫 칸은 안전하게 시작됩니다.", "");
+  resetCamera();
+  if (clockId) clearInterval(clockId);
+  clockId = setInterval(updateTimer, 250);
+}
+
+function createCellObject(cell) {
+  const material = new THREE.MeshStandardMaterial({
+    color: COLORS.hidden,
+    roughness: 0.58,
+    metalness: 0.03,
+    transparent: true,
+    opacity: 0.96
+  });
+  const mesh = new THREE.Mesh(cubeGeometry, material);
+  mesh.position.copy(cellPosition(cell.x, cell.y, cell.z));
+  mesh.userData.key = cell.key;
+  mesh.userData.disabled = false;
+
+  const edgeMaterial = new THREE.LineBasicMaterial({
+    color: COLORS.edge,
+    transparent: true,
+    opacity: 0.86
+  });
+  const edges = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+  edges.position.copy(mesh.position);
+
+  const flag = makeTextSprite("F", "#ff6475", 0.7);
+  flag.position.copy(mesh.position);
+  flag.position.y += 0.05;
+  flag.visible = false;
+
+  cell.mesh = mesh;
+  cell.material = material;
+  cell.edges = edges;
+  cell.edgeMaterial = edgeMaterial;
+  cell.flag = flag;
+
+  gridGroup.add(mesh);
+  gridGroup.add(edges);
+  gridGroup.add(flag);
+}
+
+function placeMines(firstCell) {
+  const protectedKeys = new Set([firstCell.key]);
+  getNeighbors(firstCell, true).forEach(cell => protectedKeys.add(cell.key));
+
+  let candidates = [...state.cells.values()].filter(cell => !protectedKeys.has(cell.key));
+  if (candidates.length < state.mineTotal) {
+    candidates = [...state.cells.values()].filter(cell => cell.key !== firstCell.key);
+  }
+
+  shuffle(candidates);
+  candidates.slice(0, state.mineTotal).forEach(cell => {
+    cell.mine = true;
+  });
+
+  state.cells.forEach(cell => {
+    cell.count = getNeighbors(cell).filter(item => item.mine).length;
+  });
+}
+
+function revealCell(cell) {
+  if (!cell || state.gameOver || cell.flagged || cell.revealed) return;
+
+  if (state.firstMove) {
+    placeMines(cell);
+    state.firstMove = false;
+    state.startTime = performance.now();
+  }
+
+  if (cell.mine) {
+    cell.exploded = true;
+    endGame(false);
+    return;
+  }
+
+  const queue = [cell];
+  const seen = new Set();
+
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || seen.has(current.key) || current.flagged || current.revealed) continue;
+    seen.add(current.key);
+    current.revealed = true;
+    state.opened += 1;
+    ensureLabel(current);
+    applyCellVisual(current);
+
+    if (current.count === 0) {
+      getNeighbors(current).forEach(next => {
+        if (!next.revealed && !next.flagged && !next.mine) queue.push(next);
+      });
+    }
+  }
+
+  checkWin();
+  updateHud();
+  updateHoverBox(state.cells.get(state.hoverKey));
+  updateInfluence();
+}
+
+function toggleFlag(cell) {
+  if (!cell || state.gameOver || cell.revealed) return;
+  cell.flagged = !cell.flagged;
+  state.flags += cell.flagged ? 1 : -1;
+  applyCellVisual(cell);
+  refreshCluesAround(cell);
+  updateHud();
+  updateHoverBox(state.cells.get(state.hoverKey));
+  updateInfluence();
+}
+
+function selectClue(cell) {
+  if (!isVisibleNumberClue(cell)) return;
+  state.selectedKey = cell.key;
+  updateInfluence();
+}
+
+function chordFrom(cell) {
+  if (!cell || !cell.revealed || cell.count === 0 || state.gameOver) return;
+  const neighbors = getNeighbors(cell);
+  const flags = neighbors.filter(item => item.flagged).length;
+  if (flags !== cell.count) {
+    selectClue(cell);
+    return;
+  }
+  neighbors.forEach(item => {
+    if (!item.flagged && !item.revealed) revealCell(item);
+  });
+}
+
+function endGame(won) {
+  state.gameOver = true;
+  state.won = won;
+  if (won) {
+    state.opened = state.size ** 3 - state.mineTotal;
+    state.flags = state.mineTotal;
+  }
+
+  state.cells.forEach(cell => {
+    cell.result = null;
+    if (cell.mine) {
+      cell.revealed = true;
+      if (won) cell.flagged = true;
+      cell.result = won || cell.flagged ? "correct" : cell.exploded ? "exploded" : "mine";
+      setResultLabel(cell);
+    } else if (cell.flagged) {
+      cell.result = "wrong";
+      setResultLabel(cell);
+    }
+    applyCellVisual(cell);
+  });
+
+  updateHud();
+  updateInfluence();
+  setToast(won ? "클리어했습니다." : "지뢰가 열렸습니다.", won ? "win" : "lose");
+}
+
+function checkWin() {
+  const safeCells = state.size ** 3 - state.mineTotal;
+  if (state.opened >= safeCells) {
+    endGame(true);
+  }
+}
+
+function applyCellVisual(cell) {
+  const inLayer = isInLayer(cell);
+  const ghosted = state.sliceAxis !== "all" && !inLayer;
+  const fadeVisible = state.fadeOutside && (cell.revealed || cell.flagged);
+  const visible = inLayer || fadeVisible;
+  const disabled = !inLayer;
+
+  if (isBlankOpen(cell)) {
+    cell.mesh.visible = false;
+    cell.edges.visible = false;
+    cell.mesh.userData.disabled = true;
+    if (cell.flag) cell.flag.visible = false;
+    if (cell.label) cell.label.visible = false;
+    return;
+  }
+
+  cell.mesh.visible = visible;
+  cell.edges.visible = visible;
+  cell.mesh.userData.disabled = disabled;
+
+  if (!visible) {
+    if (cell.flag) cell.flag.visible = false;
+    if (cell.label) cell.label.visible = false;
+    return;
+  }
+
+  const ghostFactor = ghosted ? 0.22 : 1;
+  if (cell.result) {
+    applyResultVisual(cell, visible, ghostFactor);
+    return;
+  }
+
+  let color = COLORS.hidden;
+  let opacity = 0.96;
+  let edgeColor = COLORS.edge;
+  let edgeOpacity = 0.78;
+
+  if (cell.revealed) {
+    if (cell.mine) {
+      color = cell.exploded ? COLORS.exploded : COLORS.mine;
+      opacity = cell.exploded ? 0.88 : 0.62;
+      edgeColor = cell.exploded ? COLORS.exploded : 0x6a7578;
+      edgeOpacity = 1;
+    } else {
+      const displayCount = remainingClueCount(cell);
+      ensureLabel(cell);
+      color = clueThreeColor(displayCount);
+      opacity = 0.24;
+      edgeColor = clueThreeColor(displayCount);
+      edgeOpacity = 0.94;
+    }
+  } else if (cell.flagged) {
+    color = COLORS.flag;
+    opacity = 0.88;
+    edgeColor = COLORS.flag;
+    edgeOpacity = 0.95;
+  }
+
+  cell.material.color.setHex(color);
+  cell.material.opacity = opacity * ghostFactor;
+  cell.edgeMaterial.color.setHex(edgeColor);
+  cell.edgeMaterial.opacity = edgeOpacity * ghostFactor;
+
+  if (cell.flag) {
+    cell.flag.visible = cell.flagged && visible && !state.gameOver;
+    cell.flag.material.opacity = ghosted ? 0.35 : 1;
+  }
+
+  if (cell.label) {
+    cell.label.visible = cell.revealed && (cell.mine || cell.result || isVisibleNumberClue(cell)) && visible;
+    cell.label.material.opacity = ghosted ? 0.3 : 1;
+  }
+}
+
+function refreshAllVisuals() {
+  state.cells.forEach(applyCellVisual);
+  updateHoverBox(state.cells.get(state.hoverKey));
+}
+
+function refreshCluesAround(cell) {
+  getNeighbors(cell).forEach(neighbor => {
+    if (neighbor.revealed && !neighbor.mine) applyCellVisual(neighbor);
+  });
+}
+
+function applyResultVisual(cell, visible, ghostFactor) {
+  const style = RESULT_STYLES[cell.result] || RESULT_STYLES.mine;
+  const hideSolvedMine = state.won && cell.result === "correct";
+
+  cell.mesh.visible = visible && !hideSolvedMine;
+  cell.edges.visible = visible && !hideSolvedMine;
+  cell.mesh.userData.disabled = true;
+
+  if (!hideSolvedMine) {
+    cell.material.color.setHex(style.mesh);
+    cell.material.opacity = style.opacity * ghostFactor;
+    cell.edgeMaterial.color.setHex(style.edge);
+    cell.edgeMaterial.opacity = 0.9 * ghostFactor;
+  }
+
+  if (cell.flag) cell.flag.visible = false;
+  if (cell.label) {
+    cell.label.visible = visible;
+    cell.label.material.opacity = ghostFactor;
+  }
+}
+
+function setResultLabel(cell) {
+  const style = RESULT_STYLES[cell.result] || RESULT_STYLES.mine;
+  ensureLabel(cell, style.text, style.color, style.scale, style.style);
+}
+
+function ensureLabel(cell, overrideText = null, overrideColor = null, overrideScale = null, overrideStyle = "number") {
+  const text = overrideText || String(remainingClueCount(cell));
+  if (!overrideText && !isVisibleNumberClue(cell)) return;
+  const color = overrideColor || (overrideText ? "#ff6475" : clueCssColor(remainingClueCount(cell)));
+  const scale = overrideScale || (cell.mine ? 0.82 : 0.72);
+  if (cell.label) {
+    setSpriteText(cell.label, text, color, overrideStyle);
+    cell.label.scale.set(scale, scale, 1);
+    return;
+  }
+  const label = makeTextSprite(text, color, scale, overrideStyle);
+  label.position.copy(cell.mesh.position);
+  label.material.depthTest = !state.labelsOnTop;
+  label.userData.key = cell.key;
+  cell.label = label;
+  gridGroup.add(label);
+}
+
+function updateInfluence() {
+  clearGroup(influenceGroup, true);
+
+  if (!state.showInfluence) {
+    updateInspector(null);
+    return;
+  }
+
+  const hoverCell = state.cells.get(state.hoverKey);
+  const selectedCell = state.cells.get(state.selectedKey);
+  const clue = isNumberClue(hoverCell) ? hoverCell : isNumberClue(selectedCell) ? selectedCell : null;
+
+  if (!clue) {
+    updateInspector(null);
+    return;
+  }
+
+  const neighbors = getNeighbors(clue);
+
+  neighbors.forEach(neighbor => {
+    if (neighbor.revealed) return;
+
+    const pos = cellPosition(neighbor.x, neighbor.y, neighbor.z);
+    const color = neighbor.flagged ? COLORS.flag : COLORS.hover;
+    const fillOpacity = neighbor.flagged ? 0.2 : 0.12;
+    const edgeOpacity = neighbor.flagged ? 0.95 : 0.9;
+
+    const fill = new THREE.Mesh(
+      ghostGeometry,
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: fillOpacity,
+        depthWrite: false
+      })
+    );
+    fill.position.copy(pos);
+    influenceGroup.add(fill);
+
+    const outline = createOutlineBox(color, edgeOpacity, CUBE + 0.08);
+    outline.position.copy(pos);
+    influenceGroup.add(outline);
+  });
+
+  updateInspector(clue);
+}
+
+function updateInspector(cell) {
+  if (!cell) {
+    els.clueValue.textContent = "-";
+    els.hiddenAround.textContent = "-";
+    els.flagsAround.textContent = "-";
+    els.neededAround.textContent = "-";
+    els.totalAround.textContent = "-";
+    return;
+  }
+
+  const neighbors = getNeighbors(cell);
+  const hidden = neighbors.filter(item => !item.revealed && !item.flagged).length;
+  const flags = neighbors.filter(item => item.flagged).length;
+  const needed = cell.count - flags;
+
+  els.clueValue.textContent = `${needed} / ${cell.count} @ ${cell.x}, ${cell.y}, ${cell.z}`;
+  els.hiddenAround.textContent = String(hidden);
+  els.flagsAround.textContent = String(flags);
+  els.neededAround.textContent = String(needed);
+  els.totalAround.textContent = String(neighbors.length);
+}
+
+function updateHud() {
+  els.mineCounter.textContent = String(state.mineTotal - state.flags);
+  els.openCounter.textContent = `${state.opened}/${state.size ** 3 - state.mineTotal}`;
+  if (state.won) {
+    els.statusText.textContent = "클리어";
+  } else if (state.gameOver) {
+    els.statusText.textContent = "게임 오버";
+  } else if (state.flagMode) {
+    els.statusText.textContent = "깃발 모드";
+  } else {
+    els.statusText.textContent = `${state.size}x${state.size}x${state.size}`;
+  }
+}
+
+function updateTimer() {
+  if (!state.startTime || state.gameOver) return;
+  state.elapsed = Math.floor((performance.now() - state.startTime) / 1000);
+  els.timer.textContent = formatTime(state.elapsed);
+}
+
+function updateLayerUi() {
+  els.layerSlider.max = String(state.size - 1);
+  els.layerSlider.value = String(Math.min(state.sliceIndex, state.size - 1));
+  els.layerSlider.disabled = state.sliceAxis === "all";
+  els.layerValue.textContent = state.sliceAxis === "all" ? "-" : String(state.sliceIndex);
+}
+
+function setFlagMode(value) {
+  state.flagMode = value;
+  els.flagMode.setAttribute("aria-pressed", String(value));
+  updateHud();
+}
+
+function setToast(message, type) {
+  els.toast.textContent = message;
+  els.toast.classList.toggle("win", type === "win");
+  els.toast.classList.toggle("lose", type === "lose");
+}
+
+function openHelp() {
+  els.helpModal.hidden = false;
+  els.helpClose.focus();
+}
+
+function closeHelp() {
+  els.helpModal.hidden = true;
+  els.helpButton.focus();
+}
+
+function onWheelZoom(event) {
+  event.preventDefault();
+  let delta = event.deltaY;
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) delta *= 16;
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) delta *= window.innerHeight;
+
+  wheelDelta = THREE.MathUtils.clamp(wheelDelta + delta / 420, -1, 1);
+  if (!wheelFrame) {
+    wheelFrame = requestAnimationFrame(applyWheelZoom);
+  }
+}
+
+function applyWheelZoom() {
+  const delta = wheelDelta;
+  wheelDelta = 0;
+  wheelFrame = 0;
+  if (Math.abs(delta) < 0.01) return;
+
+  const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
+  const distance = offset.length();
+  const nextDistance = THREE.MathUtils.clamp(
+    distance * Math.exp(delta * 0.12),
+    controls.minDistance,
+    controls.maxDistance
+  );
+
+  camera.position.copy(controls.target).add(offset.normalize().multiplyScalar(nextDistance));
+  controls.update();
+}
+
+function onPointerDown(event) {
+  downPointer = {
+    x: event.clientX,
+    y: event.clientY,
+    button: event.button
+  };
+}
+
+function onPointerMove(event) {
+  const cell = pickCell(event, event.altKey ? "clue" : "target");
+  const key = cell ? cell.key : null;
+  if (key === state.hoverKey) return;
+  state.hoverKey = key;
+  updateHoverBox(cell);
+  updateInfluence();
+}
+
+function onPointerUp(event) {
+  if (!downPointer) return;
+  const moved = Math.hypot(event.clientX - downPointer.x, event.clientY - downPointer.y);
+  const button = downPointer.button;
+  downPointer = null;
+  if (moved > 6) return;
+
+  const cell = pickCell(event, event.altKey ? "clue" : "target");
+  if (!cell) return;
+
+  if (button === 2 || state.flagMode) {
+    toggleFlag(cell);
+    return;
+  }
+
+  if (cell.revealed) {
+    chordFrom(cell);
+  } else {
+    revealCell(cell);
+  }
+}
+
+function onKeyDown(event) {
+  if (!els.helpModal.hidden) {
+    if (event.key === "Escape") closeHelp();
+    return;
+  }
+
+  if (event.key === "f" || event.key === "F") {
+    setFlagMode(!state.flagMode);
+  } else if (event.key === "r" || event.key === "R") {
+    resetCamera();
+  }
+}
+
+function pickCell(event, mode = "target") {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const pickables = [...state.cells.values()]
+    .flatMap(cell => {
+      const items = [];
+      if (cell.mesh.visible && !cell.mesh.userData.disabled) items.push(cell.mesh);
+      if (mode === "clue" && cell.label?.visible && isVisibleNumberClue(cell)) items.push(cell.label);
+      return items;
+    });
+  const hits = raycaster.intersectObjects(pickables, false);
+  if (!hits.length) return null;
+  const cells = uniqueHitCells(hits);
+
+  if (mode === "clue") {
+    return cells.find(isNumberClue) || null;
+  }
+
+  return cells.find(cell => !cell.revealed)
+    || cells.find(isNumberClue)
+    || cells[0]
+    || null;
+}
+
+function uniqueHitCells(hits) {
+  const seen = new Set();
+  const cells = [];
+
+  hits.forEach(hit => {
+    const key = hit.object.userData.key;
+    if (!key || seen.has(key)) return;
+    const cell = state.cells.get(key);
+    if (!cell) return;
+    seen.add(key);
+    cells.push(cell);
+  });
+
+  return cells;
+}
+
+function updateHoverBox(cell) {
+  if (!cell || cell.revealed || !cell.mesh.visible || cell.mesh.userData.disabled) {
+    hoverBox.visible = false;
+    return;
+  }
+  hoverBox.visible = true;
+  hoverBox.position.copy(cell.mesh.position);
+}
+
+function resetCamera() {
+  const radius = Math.max(7.8, state.size * 1.75);
+  camera.position.set(radius, radius * 0.78, radius * 1.05);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function resize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function createOutlineBox(color, opacity, size) {
+  const box = new THREE.BoxGeometry(size, size, size);
+  const geometry = new THREE.EdgesGeometry(box);
+  box.dispose();
+  return new THREE.LineSegments(
+    geometry,
+    new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthTest: false
+    })
+  );
+}
+
+function makeTextSprite(text, color, scale, style = "number") {
+  const texture = createTextTexture(text, color, style);
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: !state.labelsOnTop,
+    depthWrite: false
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.userData.text = String(text);
+  sprite.userData.color = color;
+  sprite.userData.style = style;
+  sprite.scale.set(scale, scale, 1);
+  return sprite;
+}
+
+function setSpriteText(sprite, text, color, style = "number") {
+  const nextText = String(text);
+  if (sprite.userData.text === nextText && sprite.userData.color === color && sprite.userData.style === style) return;
+
+  const oldMap = sprite.material.map;
+  sprite.material.map = createTextTexture(nextText, color, style);
+  sprite.material.needsUpdate = true;
+  sprite.userData.text = nextText;
+  sprite.userData.color = color;
+  sprite.userData.style = style;
+  if (oldMap) oldMap.dispose();
+}
+
+function createTextTexture(text, color, style = "number") {
+  const canvas = document.createElement("canvas");
+  canvas.width = 180;
+  canvas.height = 180;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = style === "result" ? "900 74px Impact, Haettenschweiler, Arial Black, sans-serif" : "900 96px Inter, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = style === "result" ? 12 : 14;
+  ctx.strokeStyle = "rgba(2, 7, 10, 0.94)";
+  ctx.strokeText(text, 90, 96);
+  ctx.lineWidth = style === "result" ? 4 : 5;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.44)";
+  ctx.strokeText(text, 90, 96);
+  ctx.fillStyle = color;
+  ctx.fillText(text, 90, 96);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function cellPosition(x, y, z) {
+  const offset = (state.size - 1) / 2;
+  return new THREE.Vector3(
+    (x - offset) * SPACING,
+    (y - offset) * SPACING,
+    (z - offset) * SPACING
+  );
+}
+
+function getNeighbors(cell, includeCenter = false) {
+  const result = [];
+  if (includeCenter) result.push(cell);
+  DIRS.forEach(([dx, dy, dz]) => {
+    const x = cell.x + dx;
+    const y = cell.y + dy;
+    const z = cell.z + dz;
+    if (x < 0 || y < 0 || z < 0 || x >= state.size || y >= state.size || z >= state.size) return;
+    result.push(state.cells.get(cellKey(x, y, z)));
+  });
+  return result;
+}
+
+function isInLayer(cell) {
+  if (state.sliceAxis === "all") return true;
+  return cell[state.sliceAxis] === state.sliceIndex;
+}
+
+function isBlankOpen(cell) {
+  return Boolean(cell && cell.revealed && !cell.mine && (cell.count === 0 || remainingClueCount(cell) === 0));
+}
+
+function isNumberClue(cell) {
+  return isVisibleNumberClue(cell);
+}
+
+function isVisibleNumberClue(cell) {
+  return Boolean(cell && cell.revealed && !cell.mine && cell.count > 0 && remainingClueCount(cell) !== 0);
+}
+
+function remainingClueCount(cell) {
+  if (!cell || cell.mine) return 0;
+  return cell.count - getNeighbors(cell).filter(item => item.flagged).length;
+}
+
+function clueCssColor(count) {
+  if (count < 0) return "#ff5b6b";
+  return numberCssColor(count);
+}
+
+function clueThreeColor(count) {
+  if (count < 0) return COLORS.flag;
+  return numberThreeColor(count);
+}
+
+function cellKey(x, y, z) {
+  return `${x},${y},${z}`;
+}
+
+function shuffle(items) {
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+}
+
+function clampInt(value, min, max, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  const safeValue = Number.isFinite(parsed) ? parsed : fallback;
+  return THREE.MathUtils.clamp(safeValue, min, max);
+}
+
+function numberCssColor(count) {
+  return NUMBER_COLORS[Math.min(count, NUMBER_COLORS.length - 1)];
+}
+
+function numberThreeColor(count) {
+  const css = numberCssColor(count);
+  return new THREE.Color(css).getHex();
+}
+
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
+
+function clearGroup(group, dispose = false) {
+  while (group.children.length) {
+    const child = group.children[group.children.length - 1];
+    group.remove(child);
+    if (dispose) disposeObject(child);
+  }
+}
+
+function disposeObject(object) {
+  object.traverse?.(item => {
+    if (item.geometry && item.geometry !== cubeGeometry && item.geometry !== edgeGeometry && item.geometry !== ghostGeometry) {
+      item.geometry.dispose();
+    }
+    if (item.material) {
+      const materials = Array.isArray(item.material) ? item.material : [item.material];
+      materials.forEach(material => {
+        if (material.map) material.map.dispose();
+        material.dispose();
+      });
+    }
+  });
+}
+</script>
+</body>
+</html>

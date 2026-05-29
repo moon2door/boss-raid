@@ -677,7 +677,11 @@ class BossRaidBridge:
 
             players = grouped_players.get(side, [])
             fallback_total = sum(max(0, self._to_int(player.get("score", 0), 0)) for player in players)
-            next_score = self._to_int(total_score.get(side, fallback_total), fallback_total)
+            next_score = (
+                self._calculate_player_damage(players)
+                if players
+                else self._to_int(total_score.get(side, fallback_total), fallback_total)
+            )
             if team.get("score") != next_score:
                 team["score"] = next_score
                 changed = True
@@ -1070,6 +1074,19 @@ class BossRaidBridge:
     def _selected_map(self):
         selected_id = self.state.get("selectedMapId", "")
         return self._map(selected_id)
+
+    @staticmethod
+    def _calculate_player_damage(players):
+        damage = 0
+        for index, player in enumerate(players or []):
+            if not isinstance(player, dict):
+                continue
+
+            score = max(0, BossRaidBridge._to_int(player.get("score", 0), 0))
+            if index == 2:
+                score = score * 6 // 5
+            damage += score
+        return damage
 
     @staticmethod
     def _to_int(value, fallback):
@@ -2894,6 +2911,22 @@ def self_test():
     assert bridge.snapshot()["teams"][0]["players"][0]["score"] == 100000
     assert bridge.snapshot()["teams"][0]["players"][1]["name"] == "P2"
     assert bridge.snapshot()["teams"][1]["score"] == 120000
+    weighted_bridge = BossRaidBridge(load_settings=False)
+    assert weighted_bridge.apply_tosu_tourney_state(
+        {
+            "totalScore": {"left": 600000},
+            "clients": [
+                {"ipcId": 0, "team": "left", "user": {"name": "A"}, "play": {"score": 100000}},
+                {"ipcId": 1, "team": "left", "user": {"name": "B"}, "play": {"score": 200000}},
+                {"ipcId": 2, "team": "left", "user": {"name": "C"}, "play": {"score": 300000}},
+            ],
+        },
+        team_ids=["team-1"],
+        allowed_screens=[],
+    )
+    assert weighted_bridge.snapshot()["teams"][0]["score"] == 660000
+    assert weighted_bridge.snapshot()["teams"][0]["players"][2]["score"] == 300000
+    assert weighted_bridge.snapshot()["totalScore"] == 660000
     auto_bridge = BossRaidBridge(load_settings=False)
     auto_bridge.apply_command({"type": "set_difficulty", "difficulty": "easy"})
     auto_bridge.apply_command({"type": "set_screen", "screen": "inGame"})

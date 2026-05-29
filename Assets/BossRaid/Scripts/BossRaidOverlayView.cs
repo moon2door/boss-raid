@@ -1712,7 +1712,7 @@ namespace BossRaid
             for (var i = 0; i < row.childCount; i++)
             {
                 var tile = row.GetChild(i);
-                var label = $"P{i + 1}";
+                var label = i == 2 ? "P3 x1.2" : $"P{i + 1}";
                 var player = GetCurrentTeamPlayer(i);
                 var score = player != null ? player.score : 0;
 
